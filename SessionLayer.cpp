@@ -8,9 +8,13 @@
 void SessionLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
     updateSession(packetInfo);
     auto session = sessions[packetInfo.dest]; 
+    auto newPacketInfo = packetInfo;
+    newPacketInfo.seq = session.sqn_;
+    newPacketInfo.sid = session.sid_;
+
 
     std::string data = "SID=" + std::to_string(session.sid_) + ";SEQ=" + std::to_string(session.sqn_) + ";DATA=" + packet + "\n";
-    down_ -> encapsulate(packetInfo, data);
+    down_ -> encapsulate(newPacketInfo, data);
 };
 
 void SessionLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){

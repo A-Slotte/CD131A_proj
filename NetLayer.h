@@ -9,7 +9,7 @@ public:
     NetLayer() = default;
     void connect(NetLayer* up, NetLayer* down);
     std::vector<std::string> split(const std::string& is, char delim);
-    std::string getHeader(const std::string& s, std::string targ);
+    std::string getHeader(const std::string& s, std::string targ, int headerIndex, int headerTarget);
 
     virtual ~NetLayer() = default;
 

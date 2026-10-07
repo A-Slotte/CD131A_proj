@@ -12,24 +12,24 @@ public:
 protected:
     struct fragmentBuffer {
         int totalFrags;
-        int recvFrags;
+        std::vector<std::string> recvFrags;
         std::chrono::steady_clock::time_point firstSeen;
     };
     struct fragmentKey {
         int seq;
-        std::string sin;
+        std::string sid;
 
         //Operator på nyckelvärdena för jämförelse i RB-träd(map)
         bool operator<(const fragmentKey& other) const {
-            if(sin != other.sin) {
-                return sin < other.sin;
+            if(sid != other.sid) {
+                return sid < other.sid;
             };
             return seq < other.seq;
         };
     };
-
-    std::vector<std::string> fragPacket(std::string& packet);
-    std::string defragPacket(std::string& frag);
-    void cleanFrags();
+    bool checkMsgLength(std::string msg);
+    std::vector<std::string> fragMsg(std::string& msg, size_t maxFragSize);
+    std::string defragMsg(std::string& frag);
+    void cleanStuckFrags();
     std::map<fragmentKey, fragmentBuffer> fragmentBuffers_;
 };

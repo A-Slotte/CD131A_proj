@@ -4,9 +4,11 @@
 
 void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
     std::string encrypted = encrypt(packetInfo);
+    auto newPacketInfo = packetInfo;
+    newPacketInfo.msgEncrypted = encrypted;
     std::string data = "ENC=CAESAR:"+std::to_string(packetInfo.cryptkey)+";DATA="+encrypted+";CRC="+std::to_string(encrypted.length())+"|ETX";
     std::cout << "Layer 6: " << data <<"\n";
-    down_->encapsulate(packetInfo, data);
+    down_->encapsulate(newPacketInfo, data);
 }
 
 void PresentationLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
