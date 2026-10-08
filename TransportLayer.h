@@ -11,13 +11,16 @@ public:
     void decapsulate(const PacketInfo& packetInfo, std::string packet) override;
 protected:
     struct fragmentBuffer {
-        int totalFrags;
+        size_t totalFrags;
         std::vector<std::string> recvFrags;
         std::chrono::steady_clock::time_point firstSeen;
     };
     struct fragmentKey {
-        int seq;
+        std::string seq;
         std::string sid;
+
+        fragmentKey() = default;
+        fragmentKey(const std::string& s, const std::string& si) : seq(s), sid(si) {}
 
         //Operator på nyckelvärdena för jämförelse i RB-träd(map)
         bool operator<(const fragmentKey& other) const {
@@ -25,6 +28,10 @@ protected:
                 return sid < other.sid;
             };
             return seq < other.seq;
+        };
+
+        bool operator==(const fragmentKey& other) const {
+            return seq == other.seq && sid == other.sid;
         };
     };
     bool checkMsgLength(std::string msg);

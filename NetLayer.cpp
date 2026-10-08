@@ -18,13 +18,13 @@ std::vector<std::string> NetLayer::split(const std::string& is, char delim){
     return res;
 };
 
-std::string NetLayer::getHeader(const std::string& headerParts, std::string targ, int headerIndex, int headerTarget){
+std::string NetLayer::getHeader(const std::string& headerParts, std::string targ, int headerIndex, int targetIndex){
     std::string res;
     std::vector<std::string> fields = split(headerParts, ';');
     for (const auto field : fields) {
         auto a = split(field, '=');
         if(a[headerIndex] == targ){
-            res = a[headerTarget];
+            res = a[targetIndex];
             return res;
         };
     }

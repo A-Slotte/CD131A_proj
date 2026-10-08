@@ -24,7 +24,9 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string packe
             ":CRC" + std::to_string(fragments[i].length()) +
             "|ETX";
             std::cout << header << "\n";
+            decapsulate(packetInfo, fragments[i]);
         }
+
     }
     else {
         std::string header = 
@@ -35,11 +37,50 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string packe
         std::cout << header << "\n";
     }
 
+
     std::cout << "GETTED HEADER: " << msg;
 }
 
 void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
+    int headerIndex = 1;
+    int headerIndexFrag = 1;
+    int targetIndexFrag = 1;
+    int targetIndex = 2;
+    
+    std::string fragHeader = getHeader(packet, "FRAG", headerIndexFrag, targetIndexFrag);
+    size_t pos = fragHeader.find('/');
+    int totalFrags = std::stoi(fragHeader.substr(pos + 1));
 
+
+    if(totalFrags == 1){
+
+        //up_ -> decapsulate();
+    }
+    else{
+        fragmentKey key;
+        key.sid = getHeader(packet, "SID", headerIndex, targetIndex);
+        key.seq = getHeader(packet, "SEQ", headerIndex, targetIndex);
+        auto it = fragmentBuffers_.find(key);
+        if(it == fragmentBuffers_.end()){
+            fragmentBuffer buffer;
+            buffer.firstSeen = std::chrono::steady_clock::now();
+            buffer.totalFrags = totalFrags;
+            buffer.recvFrags.push_back(packet); // tillfälligt packet
+        }
+        else{
+            fragmentBuffers_[key].firstSeen = std::chrono::steady_clock::now();
+            fragmentBuffers_[key].recvFrags.push_back(packet);
+            fragmentBuffers_[key].totalFrags += 1;
+            if(fragmentBuffers_[key].totalFrags == fragmentBuffers_[key].recvFrags.size()){
+                std::string message;
+                for(size_t i = 0; i < fragmentBuffers_[key].recvFrags.size(); i++){
+                    message += fragmentBuffers_[key].recvFrags[i];
+                };
+                std::cout << "Assembled fragments: " << message;
+            }
+        }
+
+    }
 }
 
 bool TransportLayer::checkMsgLength(std::string msg){
