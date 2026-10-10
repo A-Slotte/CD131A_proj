@@ -14,6 +14,7 @@ void SessionLayer::encapsulate(const PacketInfo& packetInfo, std::string packet)
 
 
     std::string data = "SID=" + std::to_string(session.sid_) + ";SEQ=" + std::to_string(session.sqn_) + ";DATA=" + packet + "\n";
+    std::cout << "Layer 5: " << data;
     down_ -> encapsulate(newPacketInfo, data);
 };
 

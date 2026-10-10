@@ -34,9 +34,9 @@ protected:
             return seq == other.seq && sid == other.sid;
         };
     };
-    bool checkMsgLength(std::string msg);
-    std::vector<std::string> fragMsg(std::string& msg, size_t maxFragSize);
-    std::string defragMsg(std::string& frag);
+    bool checkSduLength(std::string msg);
+    std::vector<std::string> fragmentSdu(std::string& msg, size_t maxFragSize);
+    std::string defragPdu(std::string& frag);
     void cleanStuckFrags();
     std::map<fragmentKey, fragmentBuffer> fragmentBuffers_;
 };

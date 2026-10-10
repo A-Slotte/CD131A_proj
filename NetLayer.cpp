@@ -18,15 +18,27 @@ std::vector<std::string> NetLayer::split(const std::string& is, char delim){
     return res;
 };
 
-std::string NetLayer::getHeader(const std::string& headerParts, std::string targ, int headerIndex, int targetIndex){
+std::string NetLayer::getHeader(const std::string& headerParts, std::string targ){
     std::string res;
     std::vector<std::string> fields = split(headerParts, ';');
     for (const auto field : fields) {
         auto a = split(field, '=');
-        if(a[headerIndex] == targ){
-            res = a[targetIndex];
+        if(a[0] == targ){
+            res = a[1];
             return res;
         };
     }
+    return "";
     
+}
+
+bool NetLayer::splitPdu(const std::string& pdu, std::string& header, std::string& payload){
+    size_t  pos = pdu.find("DATA=");
+    if (pos == std::string::npos) return false;   // ogiltigt format
+    header = pdu.substr(0, pos);
+    payload = pdu.substr(pos + 5);
+    if (!payload.empty() && payload.back() == '\n') {
+        payload.pop_back();
+    }
+    return true;
 }

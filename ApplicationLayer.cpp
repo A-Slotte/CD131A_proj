@@ -3,12 +3,11 @@
 #include <iostream>
 #include <thread>
 
-// ADD - Handle SID;
 void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
+    std::cout << printDecor1;
     down_->encapsulate(packetInfo, "");
 };
 
-// ADD - Handle SID;
 
 void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
     std::cout << divider << "\n" << "Message recieved: " << packetInfo.msg << std::endl;
