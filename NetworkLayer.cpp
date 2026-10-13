@@ -4,7 +4,7 @@
 void NetworkLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
 
 
-    std::string pdu = "SRC=" + packetInfo.dst + ";" + "DST=" + packetInfo.dst +";TTL=" + packetInfo.ttl + ";DATA=" + packet;
+    std::string pdu = "SRC=" + packetInfo.src + ";" + "DST=" + packetInfo.dst +";TTL=" + packetInfo.ttl + ";DATA=" + packet;
     std::cout << "3: Network:           " << pdu << "\n";
     down_ -> encapsulate(packetInfo, pdu);
     //Ska ttl minskas vid send?

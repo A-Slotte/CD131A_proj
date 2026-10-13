@@ -47,8 +47,10 @@ void ApplicationLayer::handleCommand(const std::string& input){
         PacketInfo packet;
         packet.msg = input.substr(pos + 1);
         packet.mac_dst = "FF";
-        packet.mac_dst = "AA";
-        
+        packet.mac_src = "AA";
+        packet.src = "192.162.10.7";
+        packet.dst = "192.162.10.8";
+        packet.ttl = "3";
         packet.DPORT = "9000";
         packet.SPORT = "8000";
         packet.cryptkey = 3;

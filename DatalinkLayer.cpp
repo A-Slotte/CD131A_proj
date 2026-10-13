@@ -11,18 +11,34 @@ void DatalinkLayer::encapsulate(const PacketInfo& packetInfo, std::string packet
     std::string pdu = 
     "STX|MAC_SRC="+packetInfo.mac_src+
     ";MAC_DST="+packetInfo.mac_dst+
-    ";LEN="+std::to_string(len)+
-    packet+
+    ";LEN="+std::to_string(len)+ 
+    ";DATA="+packet+
     ";CRC="+xorSum+"|ETX";    
     std::cout << "2: Datalink:              " << pdu << "\n";
-    down_ -> encapsulate(packetInfo, packet);
+    down_ -> encapsulate(packetInfo, pdu);
 }
 void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
+    int etxPos = packet.rfind("|ETX");
+    if(packet.substr(0, 4) != "STX|" || packet.substr(etxPos) != "|ETX"){
+        return;
+    }
 
+    PacketInfo pduInfo;
+    std::string header, payload, mac_src, mac_dst, len, crc, s;
+    size_t crcPos = packet.rfind(";CRC=");
+    size_t start = packet.find("MAC_SRC=");
+    s = packet.substr(start, crcPos - start);
+    crc = packet.substr(crcPos+ 5, etxPos - (crcPos + 4));
+    
+    splitPdu(packet, header, payload);
+    mac_src = getHeader(header, "MAC_SRC");
+    mac_dst = getHeader(header, "MAC_DST");
+    len = getHeader(header, "LEN");
+    crc = xorChecksum(payload.substr(0, stoi(len)));
 }
 
-std::string DatalinkLayer::xorChecksum(std::string sdu){
-    uint8_t checksum;
+std::string DatalinkLayer::xorChecksum(const std::string& sdu){
+    uint8_t checksum = 0;
     for(unsigned char byte : sdu){
         checksum ^= byte;
     }

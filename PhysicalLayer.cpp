@@ -15,6 +15,7 @@ void PhysicalLayer::encapsulate(const PacketInfo& packetInfo, std::string packet
 }
 void PhysicalLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
     std::string out;
+    PacketInfo pack;
     out.reserve(packet.size() / 8);
     for(size_t i = 0; i < packet.size(); i+=8){
         std::string byteStr = packet.substr(i, 8);
@@ -24,5 +25,6 @@ void PhysicalLayer::decapsulate(const PacketInfo& packetInfo, std::string packet
         out += static_cast<char>(std::bitset<8>(byteStr).to_ulong());
     }
     std::cout << "1: Physical: " << out;
+    up_ -> decapsulate(pack, out);
 
 }

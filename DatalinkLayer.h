@@ -11,5 +11,5 @@ public:
     void encapsulate(const PacketInfo& packetInfo, std::string packet) override;
     void decapsulate(const PacketInfo& packetInfo, std::string packet) override;    
 protected:
-    std::string xorChecksum(std::string sdu);
+    std::string xorChecksum(const std::string& sdu);
 };
