@@ -48,7 +48,9 @@ void ApplicationLayer::handleCommand(const std::string& input){
         packet.msg = input.substr(pos + 1);
         packet.mac_dst = "FF";
         packet.mac_dst = "AA";
-        packet.dest = "192.168.10.1";
+        
+        packet.DPORT = "9000";
+        packet.SPORT = "8000";
         packet.cryptkey = 3;
 
         encapsulate(packet, "");

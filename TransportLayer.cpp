@@ -14,21 +14,23 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string packe
         size_t fragmentsLen = fragments.size();
         for(size_t i = 0;i < fragmentsLen; i++){
             std::string header = 
-            "SPORT=" + packetInfo.src +
-            ";DPORT=" + packetInfo.dest + 
+            "SPORT=" + packetInfo.SPORT +
+            ";DPORT=" + packetInfo.DPORT + 
             ";FRAG=" + std::to_string(i+1) +"/" +std::to_string(fragmentsLen) + 
             ";DATA=SID=" + std::to_string(packetInfo.sid) + 
             ";SEQ=" + std::to_string(packetInfo.seq) +";" +"DATA="+fragments[i] ;
-            std::cout << "Layer 4: " << header << "\n";
+            std::cout << "4: Transport:             " << header << "\n";
+            down_ -> encapsulate(packetInfo, header);
         }
     }
     else {
         std::string header = 
-        "SPORT=" + packetInfo.src +
-        ";DPORT=" +packetInfo.dest + 
+        "SPORT=" + packetInfo.SPORT +
+        ";DPORT=" +packetInfo.DPORT + 
         ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) + 
         ";DATA="+ packet;
         std::cout << header << "\n";
+        down_ -> encapsulate(packetInfo, header);
     }
 }
 

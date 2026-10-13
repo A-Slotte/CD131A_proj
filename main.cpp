@@ -3,6 +3,9 @@
 #include "PresentationLayer.h"
 #include "SessionLayer.h"
 #include "TransportLayer.h"
+#include "NetworkLayer.h"
+#include "DatalinkLayer.h"
+#include "PhysicalLayer.h"
 #include <iostream>
 #include <string>
 #include <thread>
@@ -50,11 +53,19 @@ int main() {
     auto pres = std::make_unique<PresentationLayer>();
     auto sesh = std::make_unique<SessionLayer>();
     auto trans = std::make_unique<TransportLayer>();
+    auto net = std::make_unique<NetworkLayer>();;
+    auto dlink = std::make_unique<DatalinkLayer>();
+    auto phys = std::make_unique<PhysicalLayer>();
 
     app -> connect(nullptr, pres.get());
     pres -> connect(app.get(), sesh.get());
     sesh -> connect(pres.get(), trans.get());
-    trans -> connect(sesh.get(), nullptr);
+    trans -> connect(sesh.get(), net.get());
+    net -> connect(trans.get(), dlink.get());
+    dlink -> connect(net.get(), phys.get());
+    phys -> connect(dlink.get(), nullptr);
+
+
 
     app -> run();
 
