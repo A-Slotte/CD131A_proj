@@ -47,8 +47,17 @@ UdpSocket udp(9000);
     std::thread t(recieveLoop, std::ref(udp));
     std::string input;
 */
-int main() {
-    UdpSocket udp(9000);
+int main(int argc, char* argv[]) {
+    //UdpSocket udp(9000);
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " <node address> <mac> <port>\n";
+        return 1;
+    }
+
+    const std::string node = argv[1];
+    const std::string mac  = argv[2];
+    const std::string port = argv[3];
+
     auto app = std::make_unique<ApplicationLayer>();
     auto pres = std::make_unique<PresentationLayer>();
     auto sesh = std::make_unique<SessionLayer>();
@@ -56,7 +65,10 @@ int main() {
     auto net = std::make_unique<NetworkLayer>();;
     auto dlink = std::make_unique<DatalinkLayer>();
     auto phys = std::make_unique<PhysicalLayer>();
-    net -> updateIp("192.162.10.8");
+
+    net -> updateSrc(node);
+    dlink -> setMac(mac);
+    trans -> setPort(port);
 
     app -> connect(nullptr, pres.get());
     pres -> connect(app.get(), sesh.get());
@@ -66,11 +78,6 @@ int main() {
     dlink -> connect(net.get(), phys.get());
     phys -> connect(dlink.get(), nullptr);
 
-
-
     app -> run();
-
-    
-    
     return 0;
 }

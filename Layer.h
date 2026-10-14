@@ -4,23 +4,26 @@
 #include <vector>
 #include <sstream>
 
-class NetLayer {
+class PacketDropped final {};
+
+class Layer {
 public:
-    NetLayer() = default;
-    void connect(NetLayer* up, NetLayer* down);
+    Layer() = default;
+    void connect(Layer* up, Layer* down);
 
     std::vector<std::string> split(const std::string& is, char delim);
     std::string getHeader(const std::string& s, std::string targ);
 
     bool splitPdu(const std::string& pdu, std::string& header, std::string& payload);
+    [[noreturn]] void throwPacket(const std::string& layer, const std::string& reason) const;
 
-    virtual ~NetLayer() = default;
+    virtual ~Layer() = default;
     
-    virtual void encapsulate(const PacketInfo& packetInfo, std::string packet) = 0;
-    virtual void decapsulate(const PacketInfo& packetInfo, std::string packet) = 0;
+    virtual void encapsulate(const PacketInfo& packetInfo, std::string sdu) = 0;
+    virtual void decapsulate(const PacketInfo& packetInfo, std::string pdu) = 0;
 
 protected:
-    NetLayer* up_ = nullptr;
-    NetLayer* down_ = nullptr;
+    Layer* up_ = nullptr;
+    Layer* down_ = nullptr;
     std::string printDecor1 = "Layer                      PDU\n-----------------           ---------------------------------------------------------------\n";
 };

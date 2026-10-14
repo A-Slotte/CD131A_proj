@@ -1,14 +1,14 @@
 #pragma once
-#include "NetLayer.h"
+#include "Layer.h"
 #include <vector>
 #include <string>
 #include <map>
 #include <chrono>
 
-class TransportLayer : public NetLayer{
+class TransportLayer : public Layer{
 public:
-    void encapsulate(const PacketInfo& packetInfo, std::string packet) override;
-    void decapsulate(const PacketInfo& packetInfo, std::string packet) override;
+    void encapsulate(const PacketInfo& packetInfo, std::string sdu) override;
+    void decapsulate(const PacketInfo& packetInfo, std::string pdu) override;
     void setPort(std::string port){
         port_ = port;
     }
@@ -16,6 +16,8 @@ protected:
     struct fragmentBuffer {
         size_t totalFrags;
         std::vector<std::string> recvFrags;
+        std::vector<bool> receivedFrags;
+        size_t receivedCount = 0;
         std::chrono::steady_clock::time_point firstSeen;
     };
     struct fragmentKey {
@@ -39,7 +41,26 @@ protected:
     };
     bool checkSduLength(std::string msg);
     std::vector<std::string> fragmentSdu(std::string& msg, size_t maxFragSize);
-    std::string defragPdu(std::string& frag, int totalFrags);
+    bool splitIncomingPacket(
+        const std::string& pdu,
+        std::string& transportHeader,
+        std::string& payload,
+        std::string& sessionPayload
+    );
+    void decapsulateFragments(
+        PacketInfo& packetInfo,
+        const std::string& payload,
+        const std::string& sessionPayload,
+        size_t fragmentNumber,
+        size_t totalFrags
+    );
+    std::string defragPdu(
+        const std::string& frag,
+        size_t fragmentNumber,
+        size_t totalFrags,
+        const std::string& seq,
+        const std::string& sid
+    );
     void cleanStuckFrags();
     bool checkDport(std::string);
 

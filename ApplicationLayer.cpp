@@ -3,14 +3,18 @@
 #include <iostream>
 #include <thread>
 
-void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
+void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     std::cout << printDecor1;
-    down_->encapsulate(packetInfo, "");
+    try{
+        down_->encapsulate(packetInfo, sdu);
+    }
+    catch(const PacketDropped&){
+    }
 };
 
 
-void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
-    std::cout << divider << "\n" << "Message recieved: " << packetInfo.msg << std::endl;
+void ApplicationLayer::decapsulate(const PacketInfo&, std::string sdu){
+    std::cout << divider << "\n" << "Message received: " << sdu << std::endl;
 };
  
 
@@ -55,7 +59,7 @@ void ApplicationLayer::handleCommand(const std::string& input){
         packet.SPORT = "8000";
         packet.cryptkey = 3;
 
-        encapsulate(packet, "");
+        encapsulate(packet, packet.msg);
 
     }
     else{std::cout << "Command " << "'" << input << "'" << " not found" << std::endl;};

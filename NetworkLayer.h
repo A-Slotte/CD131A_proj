@@ -1,17 +1,17 @@
 #pragma once
-#include "NetLayer.h"
+#include "Layer.h"
 #include <string>
 
-class NetworkLayer : public NetLayer{
+class NetworkLayer : public Layer{
 public:
-    void encapsulate(const PacketInfo& packetInfo, std::string packet) override;
-    void decapsulate(const PacketInfo& packetInfo, std::string packet) override;
-    void updateIp(std::string newIp){
-        ip = newIp;
+    void encapsulate(const PacketInfo& packetInfo, std::string sdu) override;
+    void decapsulate(const PacketInfo& packetInfo, std::string pdu) override;
+    void updateSrc(std::string newSrc){
+        node = newSrc;
     }
 protected:
     bool updateTtl(int ttl);
     bool checkDst(const std::string& dstIp);
     
-    std::string ip;
+    std::string node;
 };

@@ -1,19 +1,47 @@
 #include "PresentationLayer.h"
 #include <iostream>
 #include <string>
+#include <stdexcept>
 
-void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
-    std::string encrypted = encrypt(packetInfo);
+void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     auto newPacketInfo = packetInfo;
+    newPacketInfo.msg = sdu;
+    std::string encrypted = encrypt(newPacketInfo);
     newPacketInfo.msgEncrypted = encrypted;
-    std::string data = "ENC=CAESAR:"+std::to_string(packetInfo.cryptkey)+";DATA="+encrypted;
+    std::string pdu = "ENC=CAESAR:"+std::to_string(packetInfo.cryptkey)+";DATA="+encrypted;
 
-    std::cout << "6: Presentation:             " << data <<"\n";
-    down_->encapsulate(newPacketInfo, data);
+    std::cout << "6: Presentation:             " << pdu <<"\n";
+    down_->encapsulate(newPacketInfo, pdu);
 }
 
-void PresentationLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
+void PresentationLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    std::string header;
+    std::string sdu;
+    if(!splitPdu(pdu, header, sdu)){
+        throwPacket("PresentationLayer", "Malformed presentation PDU");
+    }
+
+    const std::string encryption = getHeader(header, "ENC");
+    const char cipherPrefix[] = "CAESAR:";
+    if(encryption.rfind(cipherPrefix, 0) != 0){
+        throwPacket("PresentationLayer", "Unsupported or missing encryption method");
+    }
+
+    const std::string keyText = encryption.substr(sizeof(cipherPrefix) - 1);
+    if(keyText.empty() || keyText.find_first_not_of("0123456789") != std::string::npos){
+        throwPacket("PresentationLayer", "Invalid Caesar cipher key");
+    }
+
+    PacketInfo decryptedPacketInfo = packetInfo;
+
+    decryptedPacketInfo.cryptkey = std::stoi(keyText);
     
+
+    decryptedPacketInfo.msgEncrypted = sdu;
+    decryptedPacketInfo.msg = sdu;
+    decryptedPacketInfo.msg = decrypt(decryptedPacketInfo);
+    const std::string decryptedSdu = decryptedPacketInfo.msg;
+    up_->decapsulate(decryptedPacketInfo, decryptedSdu);
 }
 
 std::string PresentationLayer::encrypt(const PacketInfo& packet){

@@ -1,29 +1,31 @@
 #include "NetworkLayer.h"
 #include <iostream>
 
-void NetworkLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
+void NetworkLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
 
 
-    std::string pdu = "SRC=" + packetInfo.src + ";" + "DST=" + packetInfo.dst +";TTL=" + packetInfo.ttl + ";DATA=" + packet;
+    std::string pdu = "SRC=" + packetInfo.src + ";" + "DST=" + packetInfo.dst +";TTL=" + packetInfo.ttl + ";DATA=" + sdu;
     std::cout << "3: Network:           " << pdu << "\n";
     down_ -> encapsulate(packetInfo, pdu);
     //Ska ttl minskas vid send?
 }
-void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
-    std::string header, payload;
-    splitPdu(packet, header, payload);
-    std::string src = getHeader(header, "SRC");
+void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    std::string header, sdu;
+    if(!splitPdu(pdu, header, sdu)){
+        throwPacket("NetworkLayer", "Malformed network PDU");
+    }
+
     std::string dst = getHeader(header, "DST");
     int ttl = stoi(getHeader(header, "TTL"));
 
-    //Ska det reroutas?
-    if(checkDst(dst) && updateTtl(ttl)){
-        up_ -> decapsulate(packetInfo, payload);
+    if(!checkDst(dst)){
+        throwPacket("NetworkLayer", "Destination IP does not match this host");
     }
-    else{
-    
-        return;
+    if(!updateTtl(ttl)){
+        throwPacket("NetworkLayer", "Packet TTL has expired");
     }
+
+    up_ -> decapsulate(packetInfo, sdu);
 }
 
 bool NetworkLayer::updateTtl(int ttl){
@@ -38,9 +40,8 @@ bool NetworkLayer::updateTtl(int ttl){
 };
 
 bool NetworkLayer::checkDst(const std::string& dst){
-    if(ip == dst){
+    if(node == dst){
         return true;
     }
     return false;
 };
-

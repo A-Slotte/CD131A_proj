@@ -3,74 +3,102 @@
 #include <string>
 #include <utility>
 
-void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string packet){
+void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     std::vector<std::string> fragments;
     std::string sid = std::to_string(packetInfo.sid);
     std::string seq = std::to_string(packetInfo.seq);
     std::string header, payload;
-    splitPdu(packet, header, payload);
+    splitPdu(sdu, header, payload);
     if(checkSduLength(payload)){
         fragments = fragmentSdu(payload, 20);
         size_t fragmentsLen = fragments.size();
         for(size_t i = 0;i < fragmentsLen; i++){
-            std::string header = 
+            std::string pdu =
             "SPORT=" + packetInfo.SPORT +
             ";DPORT=" + packetInfo.DPORT + 
             ";FRAG=" + std::to_string(i+1) +"/" +std::to_string(fragmentsLen) + 
             ";DATA=SID=" + std::to_string(packetInfo.sid) + 
             ";SEQ=" + std::to_string(packetInfo.seq) +";" +"DATA="+fragments[i] ;
-            std::cout << "4: Transport:             " << header << "\n";
-            down_ -> encapsulate(packetInfo, header);
+            std::cout << "4: Transport:             " << pdu << "\n";
+            down_ -> encapsulate(packetInfo, pdu);
         }
     }
     else {
-        std::string header = 
+        std::string pdu =
         "SPORT=" + packetInfo.SPORT +
         ";DPORT=" +packetInfo.DPORT + 
         ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) + 
-        ";DATA="+ packet;
-        std::cout << header << "\n";
-        down_ -> encapsulate(packetInfo, header);
+        ";DATA="+ sdu;
+        std::cout << pdu << "\n";
+        down_ -> encapsulate(packetInfo, pdu);
     }
 }
 
-void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
-    std::string header, payload;
-    std::string sessionHeader, sessionPayload;
+void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    cleanStuckFrags();
+
+    std::string transportHeader, payload, sessionPayload;
+    if(!splitIncomingPacket(pdu, transportHeader, payload, sessionPayload)){
+        throwPacket("TransportLayer", "Malformed transport or session PDU");
+    }
+
     PacketInfo newPacketInfo = packetInfo;
-    try {
-        if (!splitPdu(packet, header, payload)) {
-            throw packet;
-        }
-    } catch (const std::string& malformedPacket) {
-        std::cout << "Incorrect packet: " << malformedPacket << '\n';
-        return;
+    const std::string destinationPort = getHeader(transportHeader, "DPORT");
+    if(!checkDport(destinationPort)){
+        throwPacket("TransportLayer", "Destination port does not match this layer");
     }
-    try {
-        if (!splitPdu(packet, sessionHeader, sessionPayload)) {
-            throw packet;
-        }
-    } catch (const std::string& malformedPacket) {
-        std::cout << "Incorrect packet: " << malformedPacket << '\n';
-        return;
+
+    newPacketInfo.DPORT = destinationPort;
+    newPacketInfo.SPORT = getHeader(transportHeader, "SPORT");
+
+    const std::string fragmentHeader = getHeader(transportHeader, "FRAG");
+    const size_t slashPos = fragmentHeader.find('/');
+    if(slashPos == std::string::npos){
+        throwPacket("TransportLayer", "Malformed fragment header");
     }
-    std::string dport = getHeader(header, "DPORT");
-    std::string sport = getHeader(header, "SPORT");
-    if(!checkDport(dport)){
-        return;
+    const size_t fragmentNumber = std::stoi(fragmentHeader.substr(0, slashPos));
+    const size_t totalFrags = std::stoi(fragmentHeader.substr(slashPos + 1));
+    if(fragmentNumber == 0 || fragmentNumber > totalFrags){
+        throwPacket("TransportLayer", "Fragment number is outside the declared range");
     }
-    newPacketInfo.DPORT = dport;
-    newPacketInfo.SPORT = sport;
-    std::string fragmentHeader = getHeader(header, "FRAG");
-    size_t slashPos = fragmentHeader.find('/');
-    size_t totalFrags = std::stoi(fragmentHeader.substr(slashPos+1));
     if(totalFrags == 1){
         up_ -> decapsulate(newPacketInfo, payload);
-    }  
-    else{
-        defragPdu(payload, totalFrags);
+        return;
     }
+
+    decapsulateFragments(newPacketInfo, payload, sessionPayload, fragmentNumber, totalFrags);
 }
+
+bool TransportLayer::splitIncomingPacket(
+    const std::string& pdu,
+    std::string& transportHeader,
+    std::string& payload,
+    std::string& sessionPayload
+){
+    std::string sessionHeader;
+    return splitPdu(pdu, transportHeader, payload)
+        && splitPdu(payload, sessionHeader, sessionPayload);
+}
+
+void TransportLayer::decapsulateFragments(
+    PacketInfo& packetInfo,
+    const std::string& payload,
+    const std::string& sessionPayload,
+    size_t fragmentNumber,
+    size_t totalFrags
+){
+    const std::string sid = getHeader(payload, "SID");
+    const std::string seq = getHeader(payload, "SEQ");
+    const std::string message = defragPdu(sessionPayload, fragmentNumber, totalFrags, seq, sid);
+    if(message.empty()){
+        return;
+    }
+
+    packetInfo.seq = std::stoi(seq);
+    packetInfo.sid = std::stoi(sid);
+    up_ -> decapsulate(packetInfo, message);
+}
+
 bool TransportLayer::checkDport(std::string port){
     if(port_ == port){
         return true;
@@ -95,42 +123,63 @@ std::vector<std::string> TransportLayer::fragmentSdu(std::string& packet, size_t
     return res;
 }
 
-std::string TransportLayer::defragPdu(std::string& pdu, int totalFrags){
-    std::string sid = getHeader(pdu, "SID");
-    std::string seq = getHeader(pdu, "SEQ");
-
-    if(totalFrags == 1){
-
-        //up_ -> decapsulate();
+std::string TransportLayer::defragPdu(
+    const std::string& fragment,
+    size_t fragmentNumber,
+    size_t totalFrags,
+    const std::string& seq,
+    const std::string& sid
+){
+    fragmentKey key;
+    key.seq = seq;
+    key.sid = sid;
+    auto it = fragmentBuffers_.find(key);
+    if(it == fragmentBuffers_.end()){
+        fragmentBuffer buffer;
+        buffer.firstSeen = std::chrono::steady_clock::now();
+        buffer.totalFrags = totalFrags;
+        buffer.recvFrags.resize(totalFrags);
+        buffer.receivedFrags.resize(totalFrags, false);
+        buffer.recvFrags[fragmentNumber - 1] = fragment;
+        buffer.receivedFrags[fragmentNumber - 1] = true;
+        buffer.receivedCount = 1;
+        fragmentBuffers_.emplace(key, std::move(buffer));
+        return "";
     }
     else{
-        fragmentKey key;
-        key.seq = seq;
-        key.sid = sid;
-        auto it = fragmentBuffers_.find(key);
-        if(it == fragmentBuffers_.end()){
-            fragmentBuffer buffer;
-            buffer.firstSeen = std::chrono::steady_clock::now();
-            buffer.totalFrags = totalFrags;
-            buffer.recvFrags.push_back(); // tillfälligt packet
-            fragmentBuffers_.emplace(key, std::move(buffer));
+        auto& buffer = it->second;
+        if(buffer.totalFrags != totalFrags){
+            throwPacket("TransportLayer", "Fragment count changed within the same message");
         }
-        else{
-            auto& buffer = it->second;
-            buffer.firstSeen = std::chrono::steady_clock::now();
-            buffer.recvFrags.push_back(packet);
-            if(buffer.totalFrags == buffer.recvFrags.size()){
-                std::string message;
-                for(size_t i = 0; i < buffer.recvFrags.size(); i++){
-                    message += buffer.recvFrags[i];
-                };
-                std::cout << "Assembled fragments: " << message;
-            }
+        const size_t fragmentIndex = fragmentNumber - 1;
+        if(!buffer.receivedFrags[fragmentIndex]){
+            buffer.recvFrags[fragmentIndex] = fragment;
+            buffer.receivedFrags[fragmentIndex] = true;
+            ++buffer.receivedCount;
         }
+        if(buffer.receivedCount == buffer.totalFrags){
+            std::string message = "SID="+sid+";SEQ="+seq+";DATA=";
+            for(size_t i = 0; i < buffer.recvFrags.size(); i++){
+                message += buffer.recvFrags[i];
+            };
+            fragmentBuffers_.erase(it);
+            std::cout << "Assembled fragments: " << message;
+            return message;
+        }
+        return "";
     }
-    return "asd";
-} 
+}
 
 void TransportLayer::cleanStuckFrags(){
+    constexpr auto fragmentTimeout = std::chrono::seconds(30);
+    const auto now = std::chrono::steady_clock::now();
 
+    for(auto it = fragmentBuffers_.begin(); it != fragmentBuffers_.end();){
+        if(now - it->second.firstSeen >= fragmentTimeout){
+            it = fragmentBuffers_.erase(it);
+        }
+        else{
+            ++it;
+        }
+    }
 }

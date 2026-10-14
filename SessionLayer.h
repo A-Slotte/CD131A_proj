@@ -1,19 +1,18 @@
 #pragma once
-#include "NetLayer.h"
+#include "Layer.h"
 #include <map>
 
-class SessionLayer : public NetLayer{
+class SessionLayer : public Layer{
 public:
-    void encapsulate(const PacketInfo& packetInfo, std::string packet) override;
-    void decapsulate(const PacketInfo& packetInfo, std::string packet) override;
+    void encapsulate(const PacketInfo& packetInfo, std::string sdu) override;
+    void decapsulate(const PacketInfo& packetInfo, std::string pdu) override;
 protected:
 
     struct sessionInfo{
         int sqn_;
         int sid_;
-    };  
+    };
     void updateSession(const PacketInfo& packetInfo);
-    bool validateSession(const PacketInfo& packetInfo, int SEQ);
-    struct sessionInfo;
-    std::map<std::string, sessionInfo> sessions; // key : DST_ADDRESS, val : sid, seq:
+    bool validateSession(const PacketInfo& packetInfo);
+    std::map<std::string, sessionInfo> sessions; // key: destination address
 };
