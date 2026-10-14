@@ -21,6 +21,9 @@ add_executable(chat
     ApplicationLayer.cpp
     SessionLayer.cpp
     TransportLayer.cpp
+    DatalinkLayer.cpp
+    NetworkLayer.cpp
+    PhysicalLayer.cpp
     # lägg till fler .cpp-filer här när du skapar dem
 )
 

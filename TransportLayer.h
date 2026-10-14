@@ -9,6 +9,9 @@ class TransportLayer : public NetLayer{
 public:
     void encapsulate(const PacketInfo& packetInfo, std::string packet) override;
     void decapsulate(const PacketInfo& packetInfo, std::string packet) override;
+    void setPort(std::string port){
+        port_ = port;
+    }
 protected:
     struct fragmentBuffer {
         size_t totalFrags;
@@ -36,7 +39,10 @@ protected:
     };
     bool checkSduLength(std::string msg);
     std::vector<std::string> fragmentSdu(std::string& msg, size_t maxFragSize);
-    std::string defragPdu(std::string& frag);
+    std::string defragPdu(std::string& frag, int totalFrags);
     void cleanStuckFrags();
+    bool checkDport(std::string);
+
     std::map<fragmentKey, fragmentBuffer> fragmentBuffers_;
+    std::string port_;
 };

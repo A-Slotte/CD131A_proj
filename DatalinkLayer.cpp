@@ -24,17 +24,30 @@ void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string packet
     }
 
     PacketInfo pduInfo;
-    std::string header, payload, mac_src, mac_dst, len, crc, s;
+    std::string header, pdu, mac_src, mac_dst, len, crc, s;
     size_t crcPos = packet.rfind(";CRC=");
     size_t start = packet.find("MAC_SRC=");
+
     s = packet.substr(start, crcPos - start);
-    crc = packet.substr(crcPos+ 5, etxPos - (crcPos + 4));
+    crc = packet.substr(crcPos+ 5, etxPos - (crcPos + 5));
     
-    splitPdu(packet, header, payload);
+    splitPdu(s, header, pdu);
     mac_src = getHeader(header, "MAC_SRC");
     mac_dst = getHeader(header, "MAC_DST");
+
+    if(mac_src != "AA" || mac_dst != "FF"){
+        return;
+    }
+
     len = getHeader(header, "LEN");
-    crc = xorChecksum(payload.substr(0, stoi(len)));
+    std::string newcrc = xorChecksum(pdu);
+    if(crc != newcrc){
+        return;
+    }
+    pduInfo.mac_dst = mac_dst;
+    pduInfo.mac_src = mac_src;
+
+    up_ -> decapsulate(pduInfo, pdu);
 }
 
 std::string DatalinkLayer::xorChecksum(const std::string& sdu){

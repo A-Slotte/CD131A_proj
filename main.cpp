@@ -56,6 +56,7 @@ int main() {
     auto net = std::make_unique<NetworkLayer>();;
     auto dlink = std::make_unique<DatalinkLayer>();
     auto phys = std::make_unique<PhysicalLayer>();
+    net -> updateIp("192.162.10.8");
 
     app -> connect(nullptr, pres.get());
     pres -> connect(app.get(), sesh.get());

@@ -15,14 +15,20 @@ void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string packet)
     std::string src = getHeader(header, "SRC");
     std::string dst = getHeader(header, "DST");
     int ttl = stoi(getHeader(header, "TTL"));
+
+    //Ska det reroutas?
     if(checkDst(dst) && updateTtl(ttl)){
-        
         up_ -> decapsulate(packetInfo, payload);
+    }
+    else{
+    
+        return;
     }
 }
 
 bool NetworkLayer::updateTtl(int ttl){
-    if(ttl >= 0){
+    if(ttl <= 0){
+        //reroute
         return false;
     }
     else {

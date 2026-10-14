@@ -37,6 +37,7 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string packe
 void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string packet){
     std::string header, payload;
     std::string sessionHeader, sessionPayload;
+    PacketInfo newPacketInfo = packetInfo;
     try {
         if (!splitPdu(packet, header, payload)) {
             throw packet;
@@ -53,43 +54,28 @@ void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string packe
         std::cout << "Incorrect packet: " << malformedPacket << '\n';
         return;
     }
-    
+    std::string dport = getHeader(header, "DPORT");
+    std::string sport = getHeader(header, "SPORT");
+    if(!checkDport(dport)){
+        return;
+    }
+    newPacketInfo.DPORT = dport;
+    newPacketInfo.SPORT = sport;
     std::string fragmentHeader = getHeader(header, "FRAG");
     size_t slashPos = fragmentHeader.find('/');
     size_t totalFrags = std::stoi(fragmentHeader.substr(slashPos+1));
-    
-    std::string sid = getHeader(payload, "SID");
-    std::string seq = getHeader(payload, "SEQ");
-
     if(totalFrags == 1){
-
-        //up_ -> decapsulate();
-    }
+        up_ -> decapsulate(newPacketInfo, payload);
+    }  
     else{
-        fragmentKey key;
-        key.seq = seq;
-        key.sid = sid;
-        auto it = fragmentBuffers_.find(key);
-        if(it == fragmentBuffers_.end()){
-            fragmentBuffer buffer;
-            buffer.firstSeen = std::chrono::steady_clock::now();
-            buffer.totalFrags = totalFrags;
-            buffer.recvFrags.push_back(packet); // tillfälligt packet
-            fragmentBuffers_.emplace(key, std::move(buffer));
-        }
-        else{
-            auto& buffer = it->second;
-            buffer.firstSeen = std::chrono::steady_clock::now();
-            buffer.recvFrags.push_back(packet);
-            if(buffer.totalFrags == buffer.recvFrags.size()){
-                std::string message;
-                for(size_t i = 0; i < buffer.recvFrags.size(); i++){
-                    message += buffer.recvFrags[i];
-                };
-                std::cout << "Assembled fragments: " << message;
-            }
-        }
+        defragPdu(payload, totalFrags);
     }
+}
+bool TransportLayer::checkDport(std::string port){
+    if(port_ == port){
+        return true;
+    }
+    return false;
 }
 
 bool TransportLayer::checkSduLength(std::string msg){
@@ -109,7 +95,39 @@ std::vector<std::string> TransportLayer::fragmentSdu(std::string& packet, size_t
     return res;
 }
 
-std::string TransportLayer::defragPdu(std::string& frag){
+std::string TransportLayer::defragPdu(std::string& pdu, int totalFrags){
+    std::string sid = getHeader(pdu, "SID");
+    std::string seq = getHeader(pdu, "SEQ");
+
+    if(totalFrags == 1){
+
+        //up_ -> decapsulate();
+    }
+    else{
+        fragmentKey key;
+        key.seq = seq;
+        key.sid = sid;
+        auto it = fragmentBuffers_.find(key);
+        if(it == fragmentBuffers_.end()){
+            fragmentBuffer buffer;
+            buffer.firstSeen = std::chrono::steady_clock::now();
+            buffer.totalFrags = totalFrags;
+            buffer.recvFrags.push_back(); // tillfälligt packet
+            fragmentBuffers_.emplace(key, std::move(buffer));
+        }
+        else{
+            auto& buffer = it->second;
+            buffer.firstSeen = std::chrono::steady_clock::now();
+            buffer.recvFrags.push_back(packet);
+            if(buffer.totalFrags == buffer.recvFrags.size()){
+                std::string message;
+                for(size_t i = 0; i < buffer.recvFrags.size(); i++){
+                    message += buffer.recvFrags[i];
+                };
+                std::cout << "Assembled fragments: " << message;
+            }
+        }
+    }
     return "asd";
 } 
 
