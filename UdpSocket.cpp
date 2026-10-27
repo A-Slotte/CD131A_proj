@@ -19,6 +19,10 @@ UdpSocket::UdpSocket(int port) {
     
     int reuse = 1;
     setsockopt(sock_, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));   // bra att ha kvar från tidigare
+#ifdef SO_REUSEPORT
+    // macOS/BSD kräver SO_REUSEPORT för att flera noder ska kunna binda samma port
+    setsockopt(sock_, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse));
+#endif
 
     // Väcker tråden
     timeval tv{};
