@@ -14,18 +14,21 @@ endif()
 find_package(Threads REQUIRED)
 
 add_executable(chat
-    main.cpp
-    UdpSocket.cpp
-    Layer.cpp
-    PresentationLayer.cpp
-    ApplicationLayer.cpp
-    SessionLayer.cpp
-    TransportLayer.cpp
-    DatalinkLayer.cpp
-    NetworkLayer.cpp
-    PhysicalLayer.cpp
+    src/main.cpp
+    src/net/UdpSocket.cpp           # UDP-socket = det delade mediet
+    src/layers/Layer.cpp            # gemensam basklass för lagren
+    src/layers/ApplicationLayer.cpp     # L7
+    src/layers/PresentationLayer.cpp    # L6
+    src/layers/SessionLayer.cpp         # L5
+    src/layers/TransportLayer.cpp       # L4
+    src/layers/NetworkLayer.cpp         # L3
+    src/layers/DatalinkLayer.cpp        # L2
+    src/layers/PhysicalLayer.cpp        # L1
     # lägg till fler .cpp-filer här när du skapar dem
 )
+
+# Includes skrivs relativt src/, t.ex. #include "layers/SessionLayer.h"
+target_include_directories(chat PRIVATE src)
 
 target_compile_options(chat PRIVATE -Wall -Wextra)
 
