@@ -14,26 +14,31 @@ cmake -B build
 cmake --build build
 ```
 
-Starta en nod: `./build/chat <nodadress> <mac> <port>`. Nodadressen är ett heltal (L3, `SRC`/`DST`),
-mac är en kort länkadress (L2, t.ex. `AA`). Alla noder ska använda port **9000**.
+Starta en nod: `./build/chat <nodadress> <mac> <port> [medium-port]`
+
+- `nodadress`: heltal, logisk nodadress i L3 (`SRC`/`DST`)
+- `mac`: kort länkadress i L2 (t.ex. `AA`)
+- `port`: logisk port i L4 (`SPORT`/`DPORT`), dvs. vilken tjänst på noden meddelandet ska till
+- `medium-port` (valfri, standard 9000): UDP-porten som är det delade mediet i L1. Alla noder som
+  ska höra varandra måste använda samma medium-port.
 
 Öppna två terminaler och starta två noder:
 
 ```sh
-./build/chat 1 AA 9000
+./build/chat 1 AA 5000
 ```
 
 ```sh
-./build/chat 2 BB 9000
+./build/chat 2 BB 6000
 ```
 
 Skriv `help` för att se kommandona:
 
 | Kommando | Beskrivning |
 |---|---|
-| `msg <nod> <port> <meddelande>` | Skickar ett meddelande, t.ex. `msg 2 9000 hej` från nod 1 |
+| `msg <nod> <port> <meddelande>` | Skickar ett meddelande, t.ex. `msg 2 6000 hej` från nod 1 |
 | `msgerror <nod> <port> <meddelande>` | Skickar med en slumpad bitflip i L1 |
-| `msgflip <nod> <port> <bit,bit,..> <meddelande>` | Skickar med valda bitar flippade i L1, t.ex. `msgflip 2 9000 400,401 hej` |
+| `msgflip <nod> <port> <bit,bit,..> <meddelande>` | Skickar med valda bitar flippade i L1, t.ex. `msgflip 2 6000 400,401 hej` |
 | `readfile <fil>` | Läser en ram (text eller bitström) från fil och matar in den i L1 som om den kom från mediet |
 | `history <nod>` | Visar konversationen med en nod |
 | `quit` | Avslutar |
@@ -65,11 +70,11 @@ Det fungerar på både Apple Silicon och Intel-Mac.
    cd ~/CD131A_proj
    cmake -B build
    cmake --build build
-   ./build/chat 1 AA 9000
+   ./build/chat 1 AA 5000
    ```
 5. Öppna en ny terminal på Macen, kör `multipass shell osi` igen och starta nästa nod:
    ```sh
-   cd ~/CD131A_proj && ./build/chat 2 BB 9000
+   cd ~/CD131A_proj && ./build/chat 2 BB 6000
    ```
 
 Ta bort VM:en efteråt med `multipass delete --purge osi`.

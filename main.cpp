@@ -48,14 +48,15 @@ UdpSocket udp(9000);
     std::string input;
 */
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <node address> <mac> <port>\n";
+    if (argc < 4 || argc > 5) {
+        std::cerr << "Usage: " << argv[0] << " <node address> <mac> <port> [medium udp port, default 9000]\n";
         return 1;
     }
 
     const std::string node = argv[1];
     const std::string mac  = argv[2];
-    const std::string port = argv[3];
+    const std::string port = argv[3];                     // logisk port i L4 (SPORT/DPORT)
+    const int mediumPort = argc == 5 ? std::stoi(argv[4]) : 9000;   // UDP-porten = det delade mediet (L1)
 
     auto app = std::make_unique<ApplicationLayer>();
     auto pres = std::make_unique<PresentationLayer>();
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
     auto trans = std::make_unique<TransportLayer>();
     auto net = std::make_unique<NetworkLayer>();;
     auto dlink = std::make_unique<DatalinkLayer>();
-    auto phys = std::make_unique<PhysicalLayer>(std::stoi(port));
+    auto phys = std::make_unique<PhysicalLayer>(mediumPort);
 
     net -> updateSrc(node);
     dlink -> setMac(mac);

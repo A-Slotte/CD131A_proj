@@ -56,7 +56,7 @@ void PhysicalLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     }
     printLayerStep("PhysicalLayer", pdu);
     std::cout << "=================================================" << std::endl;
-    socket_.send(pdu, "255.255.255.255", 9000);
+    socket_.send(pdu, "255.255.255.255", udpPort_);   // alla noder på samma medium-port hör ramen
 }
 
 void PhysicalLayer::decapsulate(const PacketInfo&, std::string pdu){
