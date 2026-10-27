@@ -25,7 +25,7 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     }
     else {
         std::string pdu =
-        "SPORT=" + packetInfo.SPORT +
+        "SPORT=" + port_ +
         ";DPORT=" +packetInfo.DPORT + 
         ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) + 
         ";DATA="+ sdu;
@@ -35,6 +35,7 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
 }
 
 void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    printLayerStep("TransportLayer", pdu);
     cleanStuckFrags();
 
     std::string transportHeader, payload, sessionPayload;
@@ -89,7 +90,7 @@ void TransportLayer::decapsulateFragments(
 ){
     const std::string sid = getHeader(payload, "SID");
     const std::string seq = getHeader(payload, "SEQ");
-    const std::string message = defragPdu(sessionPayload, fragmentNumber, totalFrags, seq, sid);
+    const std::string message = defragPdu(sessionPayload, fragmentNumber, totalFrags, packetInfo.src, seq, sid);
     if(message.empty()){
         return;
     }
@@ -127,12 +128,11 @@ std::string TransportLayer::defragPdu(
     const std::string& fragment,
     size_t fragmentNumber,
     size_t totalFrags,
+    const std::string& src,
     const std::string& seq,
     const std::string& sid
 ){
-    fragmentKey key;
-    key.seq = seq;
-    key.sid = sid;
+    fragmentKey key(src, seq, sid);
     auto it = fragmentBuffers_.find(key);
     if(it == fragmentBuffers_.end()){
         fragmentBuffer buffer;
@@ -163,7 +163,7 @@ std::string TransportLayer::defragPdu(
                 message += buffer.recvFrags[i];
             };
             fragmentBuffers_.erase(it);
-            std::cout << "Assembled fragments: " << message;
+            std::cout << "Assembled fragments: " << message << std::endl;
             return message;
         }
         return "";

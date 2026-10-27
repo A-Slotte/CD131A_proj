@@ -15,6 +15,7 @@ void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string sd
 }
 
 void PresentationLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    printLayerStep("PresentationLayer", pdu);
     std::string header;
     std::string sdu;
     if(!splitPdu(pdu, header, sdu)){

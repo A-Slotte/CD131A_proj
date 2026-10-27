@@ -23,12 +23,17 @@ void PhysicalLayer::receiveLoop() {
         std::string data = socket_.receive();
         if (data.empty()) continue;                // timeout eller fel
 
-        try{
-            std::cout << data << std::endl;
-            decapsulate(PacketInfo{}, data);           // bits -> text, skickas uppåt
-        }
-        catch (const PacketDropped&) {}
+        receiveBits(data);
     }
+}
+
+void PhysicalLayer::receiveBits(const std::string& bits) {
+    std::lock_guard<std::mutex> lock(receiveMutex_);
+    std::cout << "============== Incoming frame ===================" << std::endl;
+    try{
+        decapsulate(PacketInfo{}, bits);           // bits -> text, skickas uppåt
+    }
+    catch (const PacketDropped&) {}
 }
 
 void PhysicalLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
@@ -37,15 +42,25 @@ void PhysicalLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     for(unsigned char c : sdu){
         pdu += std::bitset<8>(c).to_string();
     }
-    printLayerStep("PhysicalLayer", pdu);
-    std::cout << "=================================================" << std::endl;
     if(packetInfo.flipBit){
         biterror(pdu);
     }
+    for(size_t pos : packetInfo.flipPositions){
+        if(pos < pdu.size()){
+            pdu[pos] = (pdu[pos] == '1') ? '0' : '1';
+            std::cout << "Flipped bit " << pos << std::endl;
+        }
+        else{
+            std::cout << "Bit " << pos << " is outside the frame (" << pdu.size() << " bits)" << std::endl;
+        }
+    }
+    printLayerStep("PhysicalLayer", pdu);
+    std::cout << "=================================================" << std::endl;
     socket_.send(pdu, "255.255.255.255", 9000);
 }
 
-void PhysicalLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+void PhysicalLayer::decapsulate(const PacketInfo&, std::string pdu){
+    printLayerStep("PhysicalLayer", pdu);
     try{
         if(pdu.size() % 8 != 0){
             throwPacket("PhysicalLayer", "Bit stream length is not a multiple of 8");
@@ -61,7 +76,6 @@ void PhysicalLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
             }
             sdu += static_cast<char>(std::bitset<8>(byteStr).to_ulong());
         }
-        printLayerStep("PhysicalLayer", sdu);
         up_ -> decapsulate(pack, sdu);    
     }
     catch(const PacketDropped&){

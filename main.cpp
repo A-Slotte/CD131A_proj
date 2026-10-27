@@ -77,6 +77,9 @@ int main(int argc, char* argv[]) {
     dlink -> connect(net.get(), phys.get());
     phys -> connect(dlink.get(), nullptr);
 
+    // readfile-kommandot simulerar mediet: bitströmmen från filen lämnas till L1
+    app -> setFrameInjector([&phys](const std::string& bits){ phys -> receiveBits(bits); });
+
     phys -> start();
     app -> run();
     return 0;

@@ -17,7 +17,8 @@ void DatalinkLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     printLayerStep("DatalinkLayer", pdu);
     down_ -> encapsulate(packetInfo, pdu);
 }
-void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+void DatalinkLayer::decapsulate(const PacketInfo&, std::string pdu){
+    printLayerStep("DatalinkLayer", pdu);
     const size_t etxPos = pdu.rfind("|ETX");
     const size_t crcPos = pdu.rfind(";CRC=");
     const size_t start = pdu.find("MAC_SRC=");
@@ -47,6 +48,10 @@ void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     }
 
     len = getHeader(header, "LEN");
+    if(len.empty() || len.find_first_not_of("0123456789") != std::string::npos
+        || std::stoul(len) != sdu.size()){
+        throwPacket("DatalinkLayer", "LEN does not match length of DATA");
+    }
     std::string newcrc = xorChecksum(sdu);
     if(crc != newcrc){
         throwPacket("DatalinkLayer", "Frame checksum does not match");

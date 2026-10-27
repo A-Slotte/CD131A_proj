@@ -10,6 +10,7 @@ void NetworkLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     //Ska ttl minskas vid send?
 }
 void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    printLayerStep("NetworkLayer", pdu);
     std::string header, sdu;
     if(!splitPdu(pdu, header, sdu)){
         throwPacket("NetworkLayer", "Malformed network PDU");

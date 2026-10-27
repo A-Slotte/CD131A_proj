@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 struct PacketInfo{
     std::string msg;
@@ -16,4 +17,5 @@ struct PacketInfo{
     std::string src;
     std::string dst;
     bool flipBit = false;
+    std::vector<size_t> flipPositions;   // bitpositioner att flippa manuellt (L1)
 };

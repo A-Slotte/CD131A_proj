@@ -3,6 +3,8 @@
 #include <iostream>
 #include <thread>
 #include <sstream>
+#include <fstream>
+#include <bitset>
 
 void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     printLayerStep("ApplicationLayer", sdu);
@@ -16,8 +18,9 @@ void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu
 
 
 void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string sdu){
+    printLayerStep("ApplicationLayer", sdu);
     addConversationMessage(packetInfo.src, packetInfo.src, sdu);
-    std::cout << divider << "\n" << "Message received: " << sdu << std::endl;
+    std::cout << divider << "\n" << "Message received from node " << packetInfo.src << ": " << sdu << std::endl;
 };
  
 
@@ -65,13 +68,18 @@ void ApplicationLayer::printConversation(const std::string& node) const {
 void ApplicationLayer::handleCommand(const std::string& input){
 
     auto command = splitWhitespaces(input);
+    if(command.empty()){
+        return;
+    }
 
     if (command[0] == "help"){
-        std::cout << divider+"\n""Commands:\n" 
-        "quit                               Exits program\n"
-        "msg <node> <port> <message>        Sends message to address\n"
-        "msgerror <node> <port> <message>   Sends message to address with bit error\n"
-        "history <node>                     Shows saved conversation\n";
+        std::cout << divider+"\n""Commands:\n"
+        "quit                                      Exits program\n"
+        "msg <node> <port> <message>               Sends message to address\n"
+        "msgerror <node> <port> <message>          Sends message with one random bit error\n"
+        "msgflip <node> <port> <bit,bit,..> <msg>  Sends message with chosen bits flipped (L1)\n"
+        "readfile <file>                           Feeds a frame/bit stream from file into L1\n"
+        "history <node>                            Shows saved conversation\n";
     }
     else if(command[0] == "quit"){
         std::cout << "\n""Closing program!""\n";
@@ -80,42 +88,77 @@ void ApplicationLayer::handleCommand(const std::string& input){
     else if(command[0] == "history" && command.size() == 2){
         printConversation(command[1]);
     }
-    else if(command[0] == "msg"){
-        PacketInfo packet;
-        std::string message;
-        for(size_t i = 3; i < command.size(); i++){
-            message += command[i] +" ";
-        }
-        packet.flipBit = false;
-        packet.msg = message;
-        packet.mac_dst = "FF";
-        packet.dst = command[1];
-        packet.ttl = "3";
-        packet.DPORT = command[2];
-        packet.cryptkey = 3;
-        encapsulate(packet, packet.msg);
+    else if(command[0] == "msg" && command.size() >= 4){
+        sendMessage(command, 3, PacketInfo{});
     }
-    else if(command[0] == "msgerror"){
+    else if(command[0] == "msgerror" && command.size() >= 4){
         PacketInfo packet;
-        std::string message = "";
-        for(size_t i = 3; i < command.size(); i++){
-            message += command[i] +" ";
-        }
         packet.flipBit = true;
-        packet.msg = message;
-        packet.mac_dst = "FF";
-        packet.dst = command[1];
-        packet.ttl = "3";
-        packet.DPORT = command[2];
-        packet.cryptkey = 3;
-        encapsulate(packet, packet.msg);
+        sendMessage(command, 3, packet);
     }
-    else{std::cout << "Command " << "'" << input << "'" << " not found" << std::endl;};
+    else if(command[0] == "msgflip" && command.size() >= 5){
+        PacketInfo packet;
+        for(const auto& pos : split(command[3], ',')){
+            if(pos.empty() || pos.find_first_not_of("0123456789") != std::string::npos){
+                std::cout << "Invalid bit position '" << pos << "'" << std::endl;
+                return;
+            }
+            packet.flipPositions.push_back(std::stoul(pos));
+        }
+        sendMessage(command, 4, packet);
+    }
+    else if(command[0] == "readfile" && command.size() == 2){
+        readFrameFile(command[1]);
+    }
+    else{std::cout << "Command " << "'" << input << "'" << " not found or missing arguments (see help)" << std::endl;};
 };
 
+void ApplicationLayer::sendMessage(const std::vector<std::string>& command, size_t msgStart, PacketInfo packet){
+    std::string message;
+    for(size_t i = msgStart; i < command.size(); i++){
+        if(!message.empty()){
+            message += " ";
+        }
+        message += command[i];
+    }
+    packet.msg = message;
+    packet.mac_dst = "FF";
+    packet.dst = command[1];
+    packet.ttl = "3";
+    packet.DPORT = command[2];
+    packet.cryptkey = 3;
+    encapsulate(packet, packet.msg);
+}
 
+// Testverktyg: läser en ram (text) eller bitström från fil och lämnar den till L1
+// som om den kommit från mediet, t.ex. specens overforingsfiler/frame_*.txt
+void ApplicationLayer::readFrameFile(const std::string& path){
+    std::ifstream file(path);
+    if(!file){
+        std::cout << "Could not open file '" << path << "'" << std::endl;
+        return;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+    while(!content.empty() && (content.back() == '\n' || content.back() == '\r')){
+        content.pop_back();
+    }
 
-
-
-
-
+    std::string bits;
+    if(content.find_first_not_of("01 \r\n") == std::string::npos){
+        for(char c : content){
+            if(c == '0' || c == '1') bits += c;
+        }
+    }
+    else{
+        for(unsigned char c : content){
+            bits += std::bitset<8>(c).to_string();
+        }
+    }
+    if(!frameInjector_){
+        std::cout << "No physical layer connected" << std::endl;
+        return;
+    }
+    frameInjector_(bits);
+}

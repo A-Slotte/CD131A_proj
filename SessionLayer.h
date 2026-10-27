@@ -1,6 +1,7 @@
 #pragma once
 #include "Layer.h"
 #include <map>
+#include <mutex>
 
 class SessionLayer : public Layer{
 public:
@@ -16,4 +17,5 @@ protected:
     sessionInfo& getSession(const std::string& peer);
     bool parseNumber(const std::string& text, int& out) const;
     std::map<std::string, sessionInfo> sessions; // key: motpartens adress
+    std::mutex sessionsMutex_;                   // sändning och mottagning körs i olika trådar
 };

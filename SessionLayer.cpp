@@ -6,20 +6,22 @@
 //SID=<sessions-id>;SEQ=<sekvensnummer>;DATA=<L6-PDU>
 
 void SessionLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
-    auto& session = getSession(packetInfo.dst);
-    ++session.sendSeq_;
-
     auto newPacketInfo = packetInfo;
-    newPacketInfo.seq = session.sendSeq_;
-    newPacketInfo.sid = session.sid_;
+    {
+        std::lock_guard<std::mutex> lock(sessionsMutex_);
+        auto& session = getSession(packetInfo.dst);
+        ++session.sendSeq_;
+        newPacketInfo.seq = session.sendSeq_;
+        newPacketInfo.sid = session.sid_;
+    }
 
-
-    std::string pdu = "SID=" + std::to_string(session.sid_) + ";SEQ=" + std::to_string(session.sendSeq_) + ";DATA=" + sdu + "\n";
+    std::string pdu = "SID=" + std::to_string(newPacketInfo.sid) + ";SEQ=" + std::to_string(newPacketInfo.seq) + ";DATA=" + sdu + "\n";
     printLayerStep("SessionLayer", pdu);
     down_ -> encapsulate(newPacketInfo, pdu);
 };
 
 void SessionLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
+    printLayerStep("SessionLayer", pdu);
     std::string header, sdu;
     if(!splitPdu(pdu, header, sdu)){
         throwPacket("SessionLayer", "Malformed session PDU");
@@ -30,6 +32,7 @@ void SessionLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
         throwPacket("SessionLayer", "Missing or invalid SID/SEQ");
     }
 
+    std::unique_lock<std::mutex> lock(sessionsMutex_);
     auto& session = getSession(packetInfo.src);
     if(seq <= session.recvSeq_){
         throwPacket("SessionLayer", "Duplicate or old SEQ " + std::to_string(seq));
@@ -39,6 +42,7 @@ void SessionLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
                   << " packet(s) from " << packetInfo.src << " missing" << std::endl;
     }
     session.recvSeq_ = seq;   // synka om även efter en lucka
+    lock.unlock();
 
     auto newPacketInfo = packetInfo;
     newPacketInfo.sid = sid;
