@@ -13,9 +13,11 @@ public:
     void setPort(std::string port){
         port_ = port;
     }
+    size_t segmentsInLastSend() const override { return lastSegmentCount_; }
 protected:
     struct fragmentBuffer {
         size_t totalFrags;
+        std::string presentationHeader;   // ENC=...; från fragmenten
         std::vector<std::string> recvFrags;
         std::vector<bool> receivedFrags;
         size_t receivedCount = 0;
@@ -38,7 +40,6 @@ protected:
             return src == other.src && seq == other.seq && sid == other.sid;
         };
     };
-    bool checkSduLength(std::string msg);
     std::vector<std::string> fragmentSdu(std::string& msg, size_t maxFragSize);
     bool splitIncomingPacket(
         const std::string& pdu,
@@ -66,4 +67,6 @@ protected:
 
     std::map<fragmentKey, fragmentBuffer> fragmentBuffers_;
     std::string port_;
+    static constexpr size_t maxFragmentSize = 50;   // max tecken chiffertext per fragment
+    size_t lastSegmentCount_ = 1;
 };

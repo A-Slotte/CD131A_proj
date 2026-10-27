@@ -3,22 +3,26 @@
 #include <string>
 #include <utility>
 
+// Enligt specens format (testfil D1/D2) blir varje fragment en egen L5-PDU:
+// SEQ räknas upp per fragment och L6-headern (ENC=...) upprepas i varje fragment.
 void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
-    std::vector<std::string> fragments;
-    std::string sid = std::to_string(packetInfo.sid);
-    std::string seq = std::to_string(packetInfo.seq);
-    std::string header, payload;
-    splitPdu(sdu, header, payload);
-    if(checkSduLength(payload)){
-        fragments = fragmentSdu(payload, 20);
+    lastSegmentCount_ = 1;
+    std::string sessionHeader, presentationPdu, presentationHeader, cipher;
+    const bool splittable = splitPdu(sdu, sessionHeader, presentationPdu)
+        && splitPdu(presentationPdu, presentationHeader, cipher);
+
+    if(splittable && cipher.size() > maxFragmentSize){
+        std::vector<std::string> fragments = fragmentSdu(cipher, maxFragmentSize);
         size_t fragmentsLen = fragments.size();
+        lastSegmentCount_ = fragmentsLen;
         for(size_t i = 0;i < fragmentsLen; i++){
             std::string pdu =
             "SPORT=" + port_ +
-            ";DPORT=" + packetInfo.DPORT + 
-            ";FRAG=" + std::to_string(i+1) +"/" +std::to_string(fragmentsLen) + 
-            ";DATA=SID=" + std::to_string(packetInfo.sid) + 
-            ";SEQ=" + std::to_string(packetInfo.seq) +";" +"DATA="+fragments[i] ;
+            ";DPORT=" + packetInfo.DPORT +
+            ";FRAG=" + std::to_string(i+1) +"/" +std::to_string(fragmentsLen) +
+            ";DATA=SID=" + std::to_string(packetInfo.sid) +
+            ";SEQ=" + std::to_string(packetInfo.seq + static_cast<int>(i)) +
+            ";DATA=" + presentationHeader + "DATA=" + fragments[i];
             printLayerStep("TransportLayer", pdu);
             down_ -> encapsulate(packetInfo, pdu);
         }
@@ -26,8 +30,8 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     else {
         std::string pdu =
         "SPORT=" + port_ +
-        ";DPORT=" +packetInfo.DPORT + 
-        ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) + 
+        ";DPORT=" +packetInfo.DPORT +
+        ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) +
         ";DATA="+ sdu;
         printLayerStep("TransportLayer", pdu);
         down_ -> encapsulate(packetInfo, pdu);
@@ -89,27 +93,29 @@ void TransportLayer::decapsulateFragments(
     size_t totalFrags
 ){
     const std::string sid = getHeader(payload, "SID");
-    const std::string seq = getHeader(payload, "SEQ");
-    const std::string message = defragPdu(sessionPayload, fragmentNumber, totalFrags, packetInfo.src, seq, sid);
+    const std::string seqText = getHeader(payload, "SEQ");
+    if(sid.empty() || seqText.empty() || seqText.size() > 9
+        || (sid + seqText).find_first_not_of("0123456789") != std::string::npos){
+        throwPacket("TransportLayer", "Fragment has missing or invalid SID/SEQ");
+    }
+    // Fragment i har SEQ = första SEQ + (i - 1), så alla fragment i ett meddelande får samma startSeq
+    const int startSeq = std::stoi(seqText) - static_cast<int>(fragmentNumber - 1);
+    if(startSeq < 1){
+        throwPacket("TransportLayer", "Fragment SEQ does not match its FRAG number");
+    }
+    const std::string message = defragPdu(sessionPayload, fragmentNumber, totalFrags, packetInfo.src, std::to_string(startSeq), sid);
     if(message.empty()){
         return;
     }
 
-    packetInfo.seq = std::stoi(seq);
+    packetInfo.seq = startSeq;
     packetInfo.sid = std::stoi(sid);
+    packetInfo.fragments = static_cast<int>(totalFrags);
     up_ -> decapsulate(packetInfo, message);
 }
 
 bool TransportLayer::checkDport(std::string port){
     if(port_ == port){
-        return true;
-    }
-    return false;
-}
-
-bool TransportLayer::checkSduLength(std::string msg){
-    size_t maxSize = 20; //20 bytes
-    if(msg.size() > 20){
         return true;
     }
     return false;
@@ -132,42 +138,48 @@ std::string TransportLayer::defragPdu(
     const std::string& seq,
     const std::string& sid
 ){
+    // Varje fragment bär L6-headern (ENC=...) + en bit av chiffertexten
+    std::string presentationHeader, chunk;
+    if(!splitPdu(fragment, presentationHeader, chunk)){
+        throwPacket("TransportLayer", "Fragment has no presentation payload");
+    }
+
     fragmentKey key(src, seq, sid);
     auto it = fragmentBuffers_.find(key);
     if(it == fragmentBuffers_.end()){
         fragmentBuffer buffer;
         buffer.firstSeen = std::chrono::steady_clock::now();
         buffer.totalFrags = totalFrags;
+        buffer.presentationHeader = presentationHeader;
         buffer.recvFrags.resize(totalFrags);
         buffer.receivedFrags.resize(totalFrags, false);
-        buffer.recvFrags[fragmentNumber - 1] = fragment;
-        buffer.receivedFrags[fragmentNumber - 1] = true;
-        buffer.receivedCount = 1;
-        fragmentBuffers_.emplace(key, std::move(buffer));
+        it = fragmentBuffers_.emplace(key, std::move(buffer)).first;
+    }
+
+    auto& buffer = it->second;
+    if(buffer.totalFrags != totalFrags){
+        throwPacket("TransportLayer", "Fragment count changed within the same message");
+    }
+    const size_t fragmentIndex = fragmentNumber - 1;
+    if(!buffer.receivedFrags[fragmentIndex]){
+        buffer.recvFrags[fragmentIndex] = chunk;
+        buffer.receivedFrags[fragmentIndex] = true;
+        ++buffer.receivedCount;
+    }
+    std::cout << "Fragment " << fragmentNumber << "/" << totalFrags << " buffered ("
+              << buffer.receivedCount << "/" << totalFrags << " received)" << std::endl;
+    if(buffer.receivedCount < buffer.totalFrags){
         return "";
     }
-    else{
-        auto& buffer = it->second;
-        if(buffer.totalFrags != totalFrags){
-            throwPacket("TransportLayer", "Fragment count changed within the same message");
-        }
-        const size_t fragmentIndex = fragmentNumber - 1;
-        if(!buffer.receivedFrags[fragmentIndex]){
-            buffer.recvFrags[fragmentIndex] = fragment;
-            buffer.receivedFrags[fragmentIndex] = true;
-            ++buffer.receivedCount;
-        }
-        if(buffer.receivedCount == buffer.totalFrags){
-            std::string message = "SID="+sid+";SEQ="+seq+";DATA=";
-            for(size_t i = 0; i < buffer.recvFrags.size(); i++){
-                message += buffer.recvFrags[i];
-            };
-            fragmentBuffers_.erase(it);
-            std::cout << "Assembled fragments: " << message << std::endl;
-            return message;
-        }
-        return "";
+
+    // Alla fragment finns: en L5-PDU med första SEQ och hela chiffertexten i ordning
+    std::string message = "SID="+sid+";SEQ="+seq+";DATA="+buffer.presentationHeader+"DATA=";
+    for(const auto& part : buffer.recvFrags){
+        message += part;
     }
+    fragmentBuffers_.erase(it);
+    std::cout << "Assembled fragments: " << message << std::endl;
+    return message;
 }
 
 void TransportLayer::cleanStuckFrags(){

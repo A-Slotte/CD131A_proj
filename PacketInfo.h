@@ -9,6 +9,7 @@ struct PacketInfo{
     int cryptkey = 0;
     int sid = 0;
     int seq = 0;
+    int fragments = 1;   // antal fragment (och SEQ-nummer) meddelandet bestod av
     std::string ttl;
     std::string mac_dst;
     std::string mac_src;

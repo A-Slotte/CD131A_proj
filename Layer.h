@@ -26,6 +26,8 @@ public:
 
     virtual void encapsulate(const PacketInfo& packetInfo, std::string sdu) = 0;
     virtual void decapsulate(const PacketInfo& packetInfo, std::string pdu) = 0;
+    // Antal segment (= SEQ-nummer) som senaste sändningen delades upp i av lagret under
+    virtual size_t segmentsInLastSend() const { return 1; }
 
 protected:
     Layer* up_ = nullptr;
