@@ -5,9 +5,9 @@ struct PacketInfo{
     std::string msg;
     std::string msgEncrypted;
     std::string data;
-    int cryptkey;
-    int sid;
-    int seq;
+    int cryptkey = 0;
+    int sid = 0;
+    int seq = 0;
     std::string ttl;
     std::string mac_dst;
     std::string mac_src;
@@ -15,5 +15,5 @@ struct PacketInfo{
     std::string SPORT;
     std::string src;
     std::string dst;
-    bool flipBit;
+    bool flipBit = false;
 };

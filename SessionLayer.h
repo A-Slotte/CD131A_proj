@@ -9,10 +9,11 @@ public:
 protected:
 
     struct sessionInfo{
-        int sqn_;
         int sid_;
+        int sendSeq_;   // senaste skickade SEQ till motparten
+        int recvSeq_;   // senaste mottagna SEQ från motparten
     };
-    void updateSession(const PacketInfo& packetInfo);
-    bool validateSession(const PacketInfo& packetInfo);
-    std::map<std::string, sessionInfo> sessions; // key: destination address
+    sessionInfo& getSession(const std::string& peer);
+    bool parseNumber(const std::string& text, int& out) const;
+    std::map<std::string, sessionInfo> sessions; // key: motpartens adress
 };

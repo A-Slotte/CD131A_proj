@@ -25,7 +25,11 @@ void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
         throwPacket("NetworkLayer", "Packet TTL has expired");
     }
 
-    up_ -> decapsulate(packetInfo, sdu);
+    // Avsändar- och mottagaradress skickas uppåt som parametrar (jfr N-DATA.indication)
+    PacketInfo newPacketInfo = packetInfo;
+    newPacketInfo.src = getHeader(header, "SRC");
+    newPacketInfo.dst = dst;
+    up_ -> decapsulate(newPacketInfo, sdu);
 }
 
 bool NetworkLayer::updateTtl(int ttl){

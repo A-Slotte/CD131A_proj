@@ -27,7 +27,7 @@ void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
         throwPacket("DatalinkLayer", "Malformed frame");
     }
 
-    PacketInfo pduInfo;
+    PacketInfo pduInfo{};
     std::string header, sdu, mac_src, mac_dst, len, crc, frameHeader;
 
     frameHeader = pdu.substr(start, crcPos - start);
