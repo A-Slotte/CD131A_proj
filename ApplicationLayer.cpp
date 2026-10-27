@@ -15,8 +15,8 @@ void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu
 };
 
 
-void ApplicationLayer::decapsulate(const PacketInfo&, std::string sdu){
-    addConversationMessage("me", "peer", sdu);
+void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string sdu){
+    addConversationMessage(packetInfo.src, packetInfo.src, sdu);
     std::cout << divider << "\n" << "Message received: " << sdu << std::endl;
 };
  
