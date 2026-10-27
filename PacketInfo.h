@@ -15,4 +15,5 @@ struct PacketInfo{
     std::string SPORT;
     std::string src;
     std::string dst;
+    bool flipBit;
 };

@@ -10,7 +10,7 @@ void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string sd
     newPacketInfo.msgEncrypted = encrypted;
     std::string pdu = "ENC=CAESAR:"+std::to_string(packetInfo.cryptkey)+";DATA="+encrypted;
 
-    std::cout << "6: Presentation:             " << pdu <<"\n";
+    printLayerStep("PresentationLayer", pdu);
     down_->encapsulate(newPacketInfo, pdu);
 }
 

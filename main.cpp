@@ -48,7 +48,6 @@ UdpSocket udp(9000);
     std::string input;
 */
 int main(int argc, char* argv[]) {
-    //UdpSocket udp(9000);
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " <node address> <mac> <port>\n";
         return 1;
@@ -64,7 +63,7 @@ int main(int argc, char* argv[]) {
     auto trans = std::make_unique<TransportLayer>();
     auto net = std::make_unique<NetworkLayer>();;
     auto dlink = std::make_unique<DatalinkLayer>();
-    auto phys = std::make_unique<PhysicalLayer>();
+    auto phys = std::make_unique<PhysicalLayer>(std::stoi(port));
 
     net -> updateSrc(node);
     dlink -> setMac(mac);
@@ -78,6 +77,7 @@ int main(int argc, char* argv[]) {
     dlink -> connect(net.get(), phys.get());
     phys -> connect(dlink.get(), nullptr);
 
+    phys -> start();
     app -> run();
     return 0;
 }

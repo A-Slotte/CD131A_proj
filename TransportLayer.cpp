@@ -14,12 +14,12 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
         size_t fragmentsLen = fragments.size();
         for(size_t i = 0;i < fragmentsLen; i++){
             std::string pdu =
-            "SPORT=" + packetInfo.SPORT +
+            "SPORT=" + port_ +
             ";DPORT=" + packetInfo.DPORT + 
             ";FRAG=" + std::to_string(i+1) +"/" +std::to_string(fragmentsLen) + 
             ";DATA=SID=" + std::to_string(packetInfo.sid) + 
             ";SEQ=" + std::to_string(packetInfo.seq) +";" +"DATA="+fragments[i] ;
-            std::cout << "4: Transport:             " << pdu << "\n";
+            printLayerStep("TransportLayer", pdu);
             down_ -> encapsulate(packetInfo, pdu);
         }
     }
@@ -29,7 +29,7 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
         ";DPORT=" +packetInfo.DPORT + 
         ";FRAG="+ std::to_string(1) +"/" +std::to_string(1) + 
         ";DATA="+ sdu;
-        std::cout << pdu << "\n";
+        printLayerStep("TransportLayer", pdu);
         down_ -> encapsulate(packetInfo, pdu);
     }
 }

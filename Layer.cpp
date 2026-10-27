@@ -45,6 +45,6 @@ bool Layer::splitPdu(const std::string& pdu, std::string& header, std::string& p
 }
 
 [[noreturn]] void Layer::throwPacket(const std::string& layer, const std::string& reason) const{
-    std::cout << "Packet dropped by " << layer << ": " << reason << '\n';
+    std::cout << "Packet dropped by " << layer << ": " << reason << std::endl;
     throw PacketDropped{};
 }

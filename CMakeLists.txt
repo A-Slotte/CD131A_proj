@@ -16,7 +16,7 @@ find_package(Threads REQUIRED)
 add_executable(chat
     main.cpp
     UdpSocket.cpp
-    NetLayer.cpp
+    Layer.cpp
     PresentationLayer.cpp
     ApplicationLayer.cpp
     SessionLayer.cpp

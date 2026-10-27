@@ -3,6 +3,8 @@
 #include "PacketInfo.h"
 #include <vector>
 #include <sstream>
+#include <iomanip>
+#include <iostream>
 
 class PacketDropped final {};
 
@@ -16,9 +18,12 @@ public:
 
     bool splitPdu(const std::string& pdu, std::string& header, std::string& payload);
     [[noreturn]] void throwPacket(const std::string& layer, const std::string& reason) const;
+    void printLayerStep(const std::string& layerName, const std::string& payload) const {
+        std::cout << std::left << std::setw(22) << layerName << " | " << payload << '\n';
+    }
 
     virtual ~Layer() = default;
-    
+
     virtual void encapsulate(const PacketInfo& packetInfo, std::string sdu) = 0;
     virtual void decapsulate(const PacketInfo& packetInfo, std::string pdu) = 0;
 

@@ -20,6 +20,14 @@ UdpSocket::UdpSocket(int port) {
     int reuse = 1;
     setsockopt(sock_, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));   // bra att ha kvar från tidigare
 
+    // Väcker tråden
+    timeval tv{};
+    tv.tv_sec  = 0;
+    tv.tv_usec = 200000;   // 200 ms
+    if (setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("setsockopt SO_RCVTIMEO");
+    }
+
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
@@ -48,7 +56,7 @@ void UdpSocket::send(const std::string& msg, const std::string& destIp, int dest
 };
 
 std::string UdpSocket::receive() {
-    char buffer[1024];
+    char buffer[2048];
     sockaddr_in senderAddr{};
     socklen_t len = sizeof(senderAddr);
     ssize_t n = recvfrom(sock_, buffer, sizeof(buffer) - 1, 0, reinterpret_cast<sockaddr*>(&senderAddr), &len);

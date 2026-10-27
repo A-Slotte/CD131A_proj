@@ -9,12 +9,12 @@ void DatalinkLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     std::string xorSum = xorChecksum(sdu);
     int len = sdu.size();
     std::string pdu = 
-    "STX|MAC_SRC="+packetInfo.mac_src+
+    "STX|MAC_SRC="+ myMac +
     ";MAC_DST="+packetInfo.mac_dst+
     ";LEN="+std::to_string(len)+ 
     ";DATA="+sdu+
     ";CRC="+xorSum+"|ETX";    
-    std::cout << "2: Datalink:              " << pdu << "\n";
+    printLayerStep("DatalinkLayer", pdu);
     down_ -> encapsulate(packetInfo, pdu);
 }
 void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
@@ -39,8 +39,11 @@ void DatalinkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     mac_src = getHeader(header, "MAC_SRC");
     mac_dst = getHeader(header, "MAC_DST");
 
-    if(mac_src != myMac || mac_dst != "FF"){
+    if(mac_dst != "FF"){
         throwPacket("DatalinkLayer", "Frame MAC addresses do not match");
+    }
+    if(mac_src == myMac){
+        throwPacket("DatalinkLayer", "Frame MAC_SRC and this MAC matches");
     }
 
     len = getHeader(header, "LEN");
