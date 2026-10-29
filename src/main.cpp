@@ -10,43 +10,10 @@
 #include <string>
 #include <thread>
 
-/*
-void handleCommand(const std::string& input, std::thread& t, UdpSocket& udp) {
-    size_t pos = input.find_first_of(' ');
-    std::string command = input.substr(0,pos);
-    if (command == "help"){
-        std::cout << divider+"\n""Commands:\n" 
-        "quit                         Exits program\n"
-        "msg <address> <message>      Sends message to address\n"
-        "broadcast <message>          Sends broadcast message\n" ;
-    }
-    else if(command == "quit"){
-        std::cout << "\n""Closing program!""\n";
-        t.join();
-        std::exit(0);
-    }
-    else if(command == "broadcast"){
-        std::string message = input.substr(pos + 1);
-        udp.send(message, "255.255.255.255", 9000);
-        std::cout << "message broadcasted" << std::endl;
-    }
-    else{std::cout << "Command " << "'" << input << "'" << " not found" << std::endl;}
-};
-*/
-/*
-void recieveLoop(UdpSocket& udp){
-    while(true){
-        std::string msg = udp.receive();
-        if(!msg.empty()){
-            std::cout << "\n" << divider << "\n" << "New message: " << msg << "\n" << std::endl;
-        };
-    };
-};
-UdpSocket udp(9000);
-    std::cout << divider + "\n" +"Type -help for all commands" + "\n" + divider +"\n" <<std::endl;
-    std::thread t(recieveLoop, std::ref(udp));
-    std::string input;
-*/
+
+
+
+
 int main(int argc, char* argv[]) {
     if (argc < 4 || argc > 5) {
         std::cerr << "Usage: " << argv[0] << " <node address> <mac> <port> [medium udp port, default 9000]\n";

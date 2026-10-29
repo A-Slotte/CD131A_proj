@@ -3,6 +3,11 @@
 #include <string>
 #include <stdexcept>
 
+/**
+ * @file PresentationLayer.cpp
+ * @brief Implementation av L6 – Presentation, Kryptering och dekryptering, caesarchiffer.
+ */
+
 void PresentationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     auto newPacketInfo = packetInfo;
     newPacketInfo.msg = sdu;
@@ -45,6 +50,14 @@ void PresentationLayer::decapsulate(const PacketInfo& packetInfo, std::string pd
     up_->decapsulate(decryptedPacketInfo, decryptedSdu);
 }
 
+/**
+ * @brief Krypterar en sträng.
+ * 
+ * @param packet
+ * PacketInfo med information om shiftnyckel och meddelandet som ska krypteras.
+ * 
+ * @return krypterat meddelande.
+ */
 std::string PresentationLayer::encrypt(const PacketInfo& packet){
     std::string result = "";
     int key = packet.cryptkey;
@@ -61,6 +74,14 @@ std::string PresentationLayer::encrypt(const PacketInfo& packet){
     return result;
 }
 
+/**
+ * @brief Dekrypterar en sträng
+ * 
+ * @param packet
+ * PacketInfo med information om shiftnyckel och krypteratmeddelande.
+ * 
+ * @return dekrypterat meddelande.
+ */
 std::string PresentationLayer::decrypt(const PacketInfo& packet){
     std::string result = "";
     int key = packet.cryptkey;

@@ -6,19 +6,29 @@
 #include <fstream>
 #include <bitset>
 
+/**
+ * @file ApplicationLayer.cpp
+ * @brief Implementation av L7 – Applikation: kommandotolk, visning av
+ *        mottagna meddelanden och konversationshistorik.
+ */
+
 void ApplicationLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     printLayerStep("ApplicationLayer", sdu);
-    addConversationMessage(packetInfo.dst, "me", sdu);
+     
+    // Sparar efter stacken körtklart ifall meddelandet inte skulle skickats. 
     try{
-        down_->encapsulate(packetInfo, sdu);
+        down_->encapsulate(packetInfo, sdu); 
+        addConversationMessage(packetInfo.dst, "me", sdu);
     }
     catch(const PacketDropped&){
+        //Lagret som kastar har redan skrivit ut.
     }
-};
 
+};
 
 void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string sdu){
     printLayerStep("ApplicationLayer", sdu);
+    // src från nätverkslagret och skickades upp med packetInfo, så L7 vet avsändaren utan att läsa L3-headern.
     addConversationMessage(packetInfo.src, packetInfo.src, sdu);
     std::cout << divider << "\n" << "Message received from node " << packetInfo.src << ": " << sdu << std::endl;
 };
@@ -27,10 +37,12 @@ void ApplicationLayer::decapsulate(const PacketInfo& packetInfo, std::string sdu
 void ApplicationLayer::run(){
     std::cout << divider + "\n" +"Type -help for all commands" + "\n" + divider +"\n" <<std::endl;
     std::string input;
+    // Huvudtråden läser kommandon; mottagning sker parallellt i
+    // PhysicalLayers egen tråd, så stdin kan blockera här.
     while (true)
     {
         if(!std::getline(std::cin, input)){
-            break;
+            break; // (Ctrl+D) avslutar programmet
         }
         if(input.empty()){
             continue;
@@ -98,7 +110,10 @@ void ApplicationLayer::handleCommand(const std::string& input){
     }
     else if(command[0] == "msgflip" && command.size() >= 5){
         PacketInfo packet;
+        // Bitpositionerna räknas i hela L1-bitströmmen inclusive stx och headers.
+        // CRC täcker bara DATA, så en flip i t.ex MAC_SRC upptäcks inte.
         for(const auto& pos : split(command[3], ',')){
+            // Tom sträng t.ex. ("400,,4001") eller ogiltiga tecken t.ex. (x,-5,g)
             if(pos.empty() || pos.find_first_not_of("0123456789") != std::string::npos){
                 std::cout << "Invalid bit position '" << pos << "'" << std::endl;
                 return;
@@ -112,9 +127,18 @@ void ApplicationLayer::handleCommand(const std::string& input){
     }
     else{std::cout << "Command " << "'" << input << "'" << " not found or missing arguments (see help)" << std::endl;};
 };
-
+/**
+ * @brief Bygger meddelandet och packetInfo som skickas vidare till encapsulate.
+ * 
+ * @param command Kommandot uppdelat i ord: [kommando, nod, port, .... medelandet]. Meningar kommer uppdelade i seperata element.
+ * 
+ * @param msgStart Index där meddelandetexten börjar
+ * 
+ * @param packet Förifyllt packetInfo, t.ex med flipBit eller flipPositions sata.
+ */
 void ApplicationLayer::sendMessage(const std::vector<std::string>& command, size_t msgStart, PacketInfo packet){
     std::string message;
+    //bygger ihop meddelandet med blanksteg.
     for(size_t i = msgStart; i < command.size(); i++){
         if(!message.empty()){
             message += " ";
@@ -122,11 +146,11 @@ void ApplicationLayer::sendMessage(const std::vector<std::string>& command, size
         message += command[i];
     }
     packet.msg = message;
-    packet.mac_dst = "FF";
+    packet.mac_dst = "FF"; // alla ramar skickas som broadcast på L2
     packet.dst = command[1];
     packet.ttl = "3";
     packet.DPORT = command[2];
-    packet.cryptkey = 3;
+    packet.cryptkey = 3; // Caesar-skift för L6
     encapsulate(packet, packet.msg);
 }
 

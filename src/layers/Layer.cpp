@@ -4,6 +4,11 @@
 #include <vector>
 #include <sstream>
 
+/**
+ * @file Layer.cpp
+ * @brief Gemensamma hjälpfunktioner för alla lager.
+ */
+
 void Layer::connect(Layer* up, Layer* down){
     up_ = up;
     down_ = down;
@@ -13,6 +18,7 @@ std::vector<std::string> Layer::split(const std::string& is, char delim){
     std::vector<std::string> res;
     std::stringstream ss(is);
     std::string part;
+    // getline läser fram till nästa delim (eller strängens slut) varje varv
     while(std::getline(ss, part, delim)){
         res.push_back(part);
     }
@@ -21,6 +27,8 @@ std::vector<std::string> Layer::split(const std::string& is, char delim){
 
 std::string Layer::getHeader(const std::string& headerParts, std::string targ){
     std::string res;
+
+    // {"SRC=X", "DST=Y"} varje fält delas i {namn, värde}
     std::vector<std::string> fields = split(headerParts, ';');
     for (const auto field : fields) {
         auto a = split(field, '=');
@@ -44,6 +52,8 @@ bool Layer::splitPdu(const std::string& pdu, std::string& header, std::string& p
     return true;
 }
 
+// [[noreturn]] talar om för kompilatorn att funktionen aldrig returnerar normalt,
+// så den varnar inte för saknad return efter ett anrop till throwPacket.
 [[noreturn]] void Layer::throwPacket(const std::string& layer, const std::string& reason) const{
     std::cout << "Packet dropped by " << layer << ": " << reason << std::endl;
     throw PacketDropped{};
