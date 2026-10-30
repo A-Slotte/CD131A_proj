@@ -13,17 +13,20 @@ endif()
 find_package(Threads REQUIRED)
 
 add_executable(chat
-    main.cpp
-    UdpSocket.cpp
-    Layer.cpp
-    PresentationLayer.cpp
-    ApplicationLayer.cpp
-    SessionLayer.cpp
-    TransportLayer.cpp
-    DatalinkLayer.cpp
-    NetworkLayer.cpp
-    PhysicalLayer.cpp
+    src/main.cpp
+    src/net/UdpSocket.cpp
+    src/layers/Layer.cpp
+    src/layers/ApplicationLayer.cpp
+    src/layers/PresentationLayer.cpp
+    src/layers/SessionLayer.cpp
+    src/layers/TransportLayer.cpp
+    src/layers/NetworkLayer.cpp
+    src/layers/DatalinkLayer.cpp
+    src/layers/PhysicalLayer.cpp
 )
+
+# Includes skrivs relativt src/, t.ex. #include "layers/SessionLayer.h"
+target_include_directories(chat PRIVATE src)
 
 target_compile_options(chat PRIVATE -Wall -Wextra)
 

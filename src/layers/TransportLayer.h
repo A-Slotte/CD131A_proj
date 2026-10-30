@@ -6,6 +6,17 @@
 #include <chrono>
 #include <tuple>
 
+/**
+ * @page TransportLayer.h
+ * @brief L4 - Transportlagret.
+ */
+
+ /**
+  * @brief L4 - Transport: identifierar paket adresserade till chat applikationen.
+  * Hanterar fragmentering av paket.
+  * 
+  * Motsvarar TCP/UDP i verkligheten.
+  */
 class TransportLayer : public Layer{
 public:
     void encapsulate(const PacketInfo& packetInfo, std::string sdu) override;
