@@ -18,6 +18,8 @@
  * skickar text nedåt till presentationslagret (L6) och visar mottagen text.
  * Lagret har ingen egen header utan skickar endast meddelandet.
  * Sparar även konversations historik.
+ * 
+ * PDU-format: @c SID=<sessions-id>;SEQ=<sekvensnummer>;DATA=<L6-PDU>
  */
 class ApplicationLayer : public Layer {
 public:

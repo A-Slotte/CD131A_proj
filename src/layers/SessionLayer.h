@@ -34,8 +34,8 @@ public:
      *
      * @param packetInfo 
      * Information om meddelandet; @c dst avgör vilken session som används.
-     * @param sdu        
-     * L6-PDU:n (t.ex. @c ENC=CAESAR:3;DATA=...).
+     * @param sdu från L6.      
+     * 
      */
     void encapsulate(const PacketInfo& packetInfo, std::string sdu) override;
 

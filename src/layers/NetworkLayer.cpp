@@ -1,13 +1,16 @@
 #include "NetworkLayer.h"
 #include <iostream>
 
+/**
+ * @file NetworkLayer.cpp
+ * @brief Implementation av L3 – Nätverk.
+ */
 void NetworkLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
 
-
+    // TTL:s startvärde, det minskas först när en nod vidarebefordrar paketet
     std::string pdu = "SRC=" + node + ";" + "DST=" + packetInfo.dst +";TTL=" + packetInfo.ttl + ";DATA=" + sdu;
     printLayerStep("NetworkLayer", pdu);
     down_ -> encapsulate(packetInfo, pdu);
-    //Ska ttl minskas vid send?
 }
 void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     printLayerStep("NetworkLayer", pdu);
@@ -15,7 +18,7 @@ void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     if(!splitPdu(pdu, header, sdu)){
         throwPacket("NetworkLayer", "Malformed network PDU");
     }
-
+    // Alla noder hör alla ramar (broadcast på L2), så paket till andra noder kastas här.
     std::string dst = getHeader(header, "DST");
     int ttl = stoi(getHeader(header, "TTL"));
 
@@ -26,7 +29,7 @@ void NetworkLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
         throwPacket("NetworkLayer", "Packet TTL has expired");
     }
 
-    // Avsändar- och mottagaradress skickas uppåt som parametrar (jfr N-DATA.indication)
+    // Avsändar- och mottagaradress skickas uppåt som parametrar
     PacketInfo newPacketInfo = packetInfo;
     newPacketInfo.src = getHeader(header, "SRC");
     newPacketInfo.dst = dst;

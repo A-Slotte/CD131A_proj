@@ -5,21 +5,29 @@
 #include <cstdlib>
 #include <thread>
 
+/**
+ * @file PhysicalLayer.cpp
+ * @brief Implementation av L1 – Fysisk.
+ */
 
 PhysicalLayer::PhysicalLayer(int port) : socket_(port) {udpPort_ = port;}
 
 void PhysicalLayer::start() {
     running_ = true;
+    // Ny tråd som kör receiveLoop på this
     listener_ = std::thread(&PhysicalLayer::receiveLoop, this);
 }
 
 PhysicalLayer::~PhysicalLayer() {
+    // Be tråden sluta och vänta tills den gjort det. Socketen har 200 ms timeout,
+    // så receiveLoop hinner se running_ == false inom kort.
     running_ = false;
     if (listener_.joinable()) listener_.join();   // annars anropas std::terminate
 }
 
 void PhysicalLayer::receiveLoop() {
     while (running_) {
+        // Blockerar högst 200 ms (SO_RCVTIMEO i UdpSocket) och returnerar då tom sträng
         std::string data = socket_.receive();
         if (data.empty()) continue;                // timeout eller fel
 
@@ -28,20 +36,24 @@ void PhysicalLayer::receiveLoop() {
 }
 
 void PhysicalLayer::receiveBits(const std::string& bits) {
+    // Mottagartråden och readfile (huvudtråden) kan komma hit samtidigt;
+    // lagren ovanför (t.ex. fragmentbuffrarna i L4) är inte trådsäkra
     std::lock_guard<std::mutex> lock(receiveMutex_);
     std::cout << "============== Incoming frame ===================" << std::endl;
     try{
         decapsulate(PacketInfo{}, bits);           // bits -> text, skickas uppåt
     }
-    catch (const PacketDropped&) {}
+    catch (const PacketDropped&) {} // Throwpacket skriver ut.
 }
 
 void PhysicalLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
+    // Varje byte blir 8 tecken '0'/'1', mest signifikanta biten först (t.ex. 'S' -> "01010011")
     std::string pdu;
     pdu.reserve(sdu.size() * 8);
     for(unsigned char c : sdu){
         pdu += std::bitset<8>(c).to_string();
     }
+    // Bitfel 
     if(packetInfo.flipBit){
         biterror(pdu);
     }

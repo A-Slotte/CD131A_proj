@@ -3,19 +3,39 @@
 #include <string>
 #include <utility>
 
+
+/**
+ * @file TransportLayer.cpp
+ * @brief Implementation av L4 – Transport.
+ */
+
+
 // Enligt specens format (testfil D1/D2) blir varje fragment en egen L5-PDU:
 // SEQ räknas upp per fragment och L6-headern (ENC=...) upprepas i varje fragment.
 void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
     lastSegmentCount_ = 1;
     std::string sessionHeader, presentationPdu, presentationHeader, cipher;
-    const bool splittable = splitPdu(sdu, sessionHeader, presentationPdu)
-        && splitPdu(presentationPdu, presentationHeader, cipher);
 
+
+    // sdu = SID=..;SEQ=..;DATA=ENC=..;DATA=<chiffertext>
+    // Plocka isär L5 och L6 för att kunna dela chiffertexten och upprepa ENC-headern
+    bool splittable = false;
+    if(!splitPdu(sdu, sessionHeader, presentationPdu)){
+        splittable = false;
+    } 
+    if(!splitPdu(presentationPdu, presentationHeader, cipher)){
+       splittable = false;
+    } 
+    else {
+        splittable = true;
+    };
+   
     if(splittable && cipher.size() > maxFragmentSize){
         std::vector<std::string> fragments = fragmentSdu(cipher, maxFragmentSize);
         size_t fragmentsLen = fragments.size();
-        lastSegmentCount_ = fragmentsLen;
+        lastSegmentCount_ = fragmentsLen; // SessionLayer läser detta för att hoppa förbi använda SEQ
         for(size_t i = 0;i < fragmentsLen; i++){
+            // Varje fragment byggs om till en komplett L5-PDU med eget SEQ
             std::string pdu =
             "SPORT=" + port_ +
             ";DPORT=" + packetInfo.DPORT +
@@ -28,6 +48,7 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
         }
     }
     else {
+        // Kort meddelande: ett enda segment, L5-PDU:n skickas oförändrad
         std::string pdu =
         "SPORT=" + port_ +
         ";DPORT=" +packetInfo.DPORT +
@@ -40,13 +61,14 @@ void TransportLayer::encapsulate(const PacketInfo& packetInfo, std::string sdu){
 
 void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     printLayerStep("TransportLayer", pdu);
+    // Städa bort gamla ofullständiga meddelanden vid varje mottagning (ingen egen timer-tråd behövs)
     cleanStuckFrags();
 
     std::string transportHeader, payload, sessionPayload;
     if(!splitIncomingPacket(pdu, transportHeader, payload, sessionPayload)){
         throwPacket("TransportLayer", "Malformed transport or session PDU");
     }
-
+    //bara paket till denna nods port tas emot (som portar i TCP/UDP)
     PacketInfo newPacketInfo = packetInfo;
     const std::string destinationPort = getHeader(transportHeader, "DPORT");
     if(!checkDport(destinationPort)){
@@ -56,13 +78,16 @@ void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     newPacketInfo.DPORT = destinationPort;
     newPacketInfo.SPORT = getHeader(transportHeader, "SPORT");
 
+    // FRAG=i/n
     const std::string fragmentHeader = getHeader(transportHeader, "FRAG");
     const size_t slashPos = fragmentHeader.find('/');
     if(slashPos == std::string::npos){
         throwPacket("TransportLayer", "Malformed fragment header");
     }
+
     const size_t fragmentNumber = std::stoi(fragmentHeader.substr(0, slashPos));
     const size_t totalFrags = std::stoi(fragmentHeader.substr(slashPos + 1));
+
     if(fragmentNumber == 0 || fragmentNumber > totalFrags){
         throwPacket("TransportLayer", "Fragment number is outside the declared range");
     }
@@ -74,18 +99,19 @@ void TransportLayer::decapsulate(const PacketInfo& packetInfo, std::string pdu){
     decapsulateFragments(newPacketInfo, payload, sessionPayload, fragmentNumber, totalFrags);
 }
 
-bool TransportLayer::splitIncomingPacket(
-    const std::string& pdu,
-    std::string& transportHeader,
-    std::string& payload,
-    std::string& sessionPayload
-){
+bool TransportLayer::splitIncomingPacket(const std::string& pdu, std::string& transportHeader, std::string& payload, std::string& sessionPayload){
     std::string sessionHeader;
-    return splitPdu(pdu, transportHeader, payload)
-        && splitPdu(payload, sessionHeader, sessionPayload);
+    if(!splitPdu(pdu, transportHeader, payload)){
+        return false;
+    } 
+    if(!splitPdu(payload, sessionHeader, sessionPayload)){
+       return false; 
+    } 
+    return true;
 }
 
 void TransportLayer::decapsulateFragments(
+
     PacketInfo& packetInfo,
     const std::string& payload,
     const std::string& sessionPayload,
@@ -94,6 +120,7 @@ void TransportLayer::decapsulateFragments(
 ){
     const std::string sid = getHeader(payload, "SID");
     const std::string seqText = getHeader(payload, "SEQ");
+    // Bara siffror och högst 9 tecken, så att stoi nedan inte kan kasta
     if(sid.empty() || seqText.empty() || seqText.size() > 9
         || (sid + seqText).find_first_not_of("0123456789") != std::string::npos){
         throwPacket("TransportLayer", "Fragment has missing or invalid SID/SEQ");
@@ -107,7 +134,8 @@ void TransportLayer::decapsulateFragments(
     if(message.empty()){
         return;
     }
-
+    
+    // Sessionslagret får veta hur många SEQ meddelandet använde (startSeq .. startSeq+n-1)
     packetInfo.seq = startSeq;
     packetInfo.sid = std::stoi(sid);
     packetInfo.fragments = static_cast<int>(totalFrags);

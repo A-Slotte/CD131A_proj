@@ -14,11 +14,7 @@
  * dekrypterar datan från L5. Presentationslagret omvandlar även data mellan intern representation och 
  * en gemensam överföringsrepesentation, hanterar teckenkodning och kompremering.
  * 
- * HEADER
- * Vilken kryptering som används, "ENC=CAESAR".
- * :shift key
- * Enkrypterad data.
- * 
+ * L6-PDU:n (t.ex. @c ENC=CAESAR:3;DATA=...).
  */
 class PresentationLayer : public Layer {
 public:
